@@ -1,0 +1,15 @@
+#pragma once
+#include <bsd/string.h>
+#include <errno.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/types.h>
+
+struct linked_str_node {
+	char *str;
+	struct linked_str_node *next;
+};
