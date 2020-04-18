@@ -25,6 +25,7 @@ struct site_info {
 	char current_working_dir[MAX_PATH_LEN];
 	struct linked_str_node *cmd_list;
 	pthread_t thread;
+	uint32_t thread_id;
 };
 
 struct site_pair {

@@ -4,6 +4,7 @@
 #include "site.h"
 #include "conn.h"
 #include "config.h"
+#include "msg.h"
 #include "thread.h"
 
 void cmd_help(char *line);

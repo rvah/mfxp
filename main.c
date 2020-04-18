@@ -5,8 +5,10 @@
 #include "site.h"
 #include "ui.h"
 #include "config.h"
+#include "msg.h"
 
 void init() {
+	msg_init();
 	ssl_init();
 	config_read("config.ini");
 }

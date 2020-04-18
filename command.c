@@ -23,6 +23,18 @@ void bad_arg(char *cmd) {
 	printf("bad arg\n");
 }
 
+struct site_info *cmd_get_site(char which) {
+	struct site_pair *pair = site_get_current_pair();
+
+	if(which == 'l') {
+		return pair->left;
+	} else if (which == 'r') {
+		return pair->right;
+	}
+
+	return NULL;
+}
+
 /*
 	command args: open <all>
 */
@@ -89,7 +101,17 @@ void cmd_close(char *line, char which) {
 
 //site specific commands
 void cmd_ls(char *line, char which) {
-	printf("ls %c\n", which);
+	struct site_info *s = cmd_get_site(which);
+
+	if(s == NULL) {
+		printf("no site connected.\n");
+		return;
+	}
+
+	struct msg *m = malloc(sizeof(struct msg));
+	m->to_id = s->thread_id;
+	m->event = EV_SITE_LS;
+	msg_send(m);
 }
 
 void cmd_ref(char *line, char which) {
