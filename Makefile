@@ -9,6 +9,7 @@ FILES = main.c \
 		config.c \
 		thread.c \
 		msg.c \
+		log.c \
 		libs/inih/ini.c
 
 LIBS = -lssl -lcrypto -lbsd -lreadline -lpthread

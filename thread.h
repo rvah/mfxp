@@ -4,5 +4,8 @@
 #include "site.h"
 #include "conn.h"
 #include "msg.h"
+#include "log.h"
+#include "colors.h"
 
+void *thread_ui(void *ptr);
 void *thread_site(void *ptr);

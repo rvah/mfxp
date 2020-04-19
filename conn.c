@@ -47,7 +47,7 @@ bool __control_send(struct site_info *site, char *data, bool force_plaintext) {
 	uint32_t n_sent = 0;
 	uint32_t n = 0;
 
-	printf(data);
+	log_w(data);
 
 	while(n_sent < len) {
 		n = write_socket(site, data+n_sent, len-n_sent, force_plaintext);
@@ -70,7 +70,7 @@ int32_t __control_recv(struct site_info *site, bool force_plaintext) {
 
 	while((numbytes = read_socket(site, buf, CONTROL_BUF_SZ-1, force_plaintext)) != 0) {
 		if (numbytes == -1) {
-			printf("error recv\n");
+			log_w("error recv\n");
 			return -1;
 		}
 
@@ -80,7 +80,7 @@ int32_t __control_recv(struct site_info *site, bool force_plaintext) {
 			if(buf[i] == '\n') {
 				//write line
 				line[col_count+1] = '\0';
-				printf(line);
+				log_w(line);
 
 				col_count = 0;
 
@@ -120,14 +120,14 @@ bool auth(struct site_info *site) {
 		code = __control_recv(site, true);
 
 		if(code != 234) {
-			printf("auth tls failed(code %d)\n", code);
+			log_w("auth tls failed(code %d)\n", code);
 			return false;
 		}
 
 		SSL_CTX *ctx = ssl_get_context();
 
 		if(ctx == NULL) {
-			printf("failed to get SSL context\n");
+			log_w("failed to get SSL context\n");
 			return false;
 		}
 
@@ -136,7 +136,7 @@ bool auth(struct site_info *site) {
 		SSL_set_fd(ssl, site->socket_fd);
 
 		if(SSL_connect(ssl) == -1) {
-			printf("TLS FAILED, ERROR:\n");
+			log_w("TLS FAILED, ERROR:\n");
 			ERR_print_errors_fp(stderr);
 			SSL_CTX_free(ctx);
 			return false;
@@ -201,20 +201,20 @@ bool ftp_connect(struct site_info *site) {
 	hints.ai_socktype = SOCK_STREAM;
 
 	if ((rv = getaddrinfo(site->address, site->port, &hints, &servinfo)) != 0) {
-		printf("getaddrinfo: %s\n", gai_strerror(rv));
+		log_w("getaddrinfo: %s\n", gai_strerror(rv));
 		return false;
 	}
 
 	// loop through all the results and connect to the first we can
 	for(p = servinfo; p != NULL; p = p->ai_next) {
 		if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
-			printf("error client: socket\n");
+			log_w("error client: socket\n");
 			continue;
 		}
 
 		if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
 			close(sockfd);
-			printf("error client: connect\n");
+			log_w("error client: connect\n");
 			continue;
 		}
 
@@ -222,12 +222,12 @@ bool ftp_connect(struct site_info *site) {
 	}
 
 	if (p == NULL) {
-		printf("client: failed to connect\n");
+		log_w("client: failed to connect\n");
 		return false;
 	}
 
 	inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr), s, sizeof s);
-	printf("client: connecting to %s\n", s);
+	log_w("client: connecting to %s\n", s);
 
 	freeaddrinfo(servinfo); // all done with this structure
 
@@ -247,5 +247,5 @@ bool ftp_connect(struct site_info *site) {
 
 void ftp_disconnect(struct site_info *site) {
 	close(site->socket_fd);
-	printf("FTP session was terminated\n");
+	log_w("FTP session was terminated\n");
 }

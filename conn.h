@@ -10,6 +10,7 @@
 #include "crypto.h"
 #include "filesystem.h"
 #include "site.h"
+#include "log.h"
 
 #define CONTROL_BUF_SZ 1024 // max number of bytes we can get at once 
 #define CONTROL_LINE_SZ 1024

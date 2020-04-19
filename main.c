@@ -6,8 +6,10 @@
 #include "ui.h"
 #include "config.h"
 #include "msg.h"
+#include "log.h"
 
 void init() {
+	log_init();
 	msg_init();
 	ssl_init();
 	config_read("config.ini");
@@ -16,6 +18,7 @@ void init() {
 void destroy() {
 	ssl_cleanup();
 	config_cleanup();
+	log_cleanup();
 }
 
 int32_t main( int32_t argc, char **argv ) {

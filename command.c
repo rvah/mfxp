@@ -35,6 +35,14 @@ struct site_info *cmd_get_site(char which) {
 	return NULL;
 }
 
+void cmd_execute(uint32_t thread_id, uint32_t event, void *data) {
+	struct msg *m = malloc(sizeof(struct msg));
+	m->to_id = thread_id;
+	m->event = event;
+	m->data = data;
+	msg_send(m);
+}
+
 /*
 	command args: open <all>
 */
@@ -108,10 +116,7 @@ void cmd_ls(char *line, char which) {
 		return;
 	}
 
-	struct msg *m = malloc(sizeof(struct msg));
-	m->to_id = s->thread_id;
-	m->event = EV_SITE_LS;
-	msg_send(m);
+	cmd_execute(s->thread_id, EV_SITE_LS, NULL);
 }
 
 void cmd_ref(char *line, char which) {
@@ -119,7 +124,21 @@ void cmd_ref(char *line, char which) {
 }
 
 void cmd_cd(char *line, char which) {
-	printf("cd %c\n", which);
+	struct site_info *s = cmd_get_site(which);
+	
+	if(s == NULL) {
+		printf("no site connected.\n");
+		return;
+	}
+
+	char *arg_path = get_arg(line, 1);
+
+	if(arg_path == NULL) {
+		bad_arg("cd");
+		return;
+	}
+
+	cmd_execute(s->thread_id, EV_SITE_CWD, (void *)arg_path);	
 }
 
 void cmd_put(char *line, char which) {

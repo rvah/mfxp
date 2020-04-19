@@ -133,6 +133,9 @@ void ui_loop() {
 
 	rl_attempted_completion_function = tab_auto_complete;
 
+	pthread_t ui_thread;
+	pthread_create(&ui_thread, NULL, thread_ui, NULL);
+
 	while(running) {
 		current_pair = site_get_current_pair();
 
