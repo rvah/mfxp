@@ -160,7 +160,20 @@ void cmd_put(char *line, char which) {
 }
 
 void cmd_get(char *line, char which) {
-	printf("get %c\n", which);
+	struct site_info *s = cmd_get_site(which);
+
+	if(s == NULL) {
+		printf("no site connected.\n");
+		return;
+	}
+
+	char *arg_path = get_arg(line, 1);
+
+	if(arg_path == NULL) {
+		bad_arg("get");
+		return;
+	}
+	cmd_execute(s->thread_id, EV_SITE_GET, (void *)arg_path);
 }
 
 void cmd_rm(char *line, char which) {

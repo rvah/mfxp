@@ -28,7 +28,7 @@ void thread_ui_handle_event(struct msg *m) {
 				break;
 		}
 
-		printf(d->str);
+		printf("%s", d->str);
 
 		rl_restore_prompt();
 		rl_replace_line(save_rl_line, 0);
@@ -122,6 +122,17 @@ void thread_site_handle_event(struct msg *m, struct site_info *s) {
 	case EV_SITE_CLOSE:
 		ftp_disconnect(s);
 		log_ui(s->thread_id, LOG_T_I, "connection closed.\n");
+		break;
+	case EV_SITE_GET:
+		if(m->data == NULL) {
+			printf("EV_SITE_GET: bad path\n");
+			break;
+		}
+
+		if(!ftp_get(s, (char *)m->data)) {
+			log_ui(s->thread_id, LOG_T_E, "File download failed!\n");
+		}
+
 		break;
 	}
 

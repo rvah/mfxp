@@ -26,7 +26,15 @@ bool control_end(char *buf) {
 	return buf[3] == ' ';
 }
 
-ssize_t read_socket(struct site_info *site, void *buf, size_t len, bool force_plaintext) {
+ssize_t read_data_socket(struct site_info *site, void *buf, size_t len, bool force_plaintext) {
+	if(site->use_tls && !force_plaintext) {
+		return SSL_read(site->data_secure_fd, buf, len);
+	} else {
+		return recv(site->data_socket_fd, buf, len, 0);
+	}
+}
+
+ssize_t read_control_socket(struct site_info *site, void *buf, size_t len, bool force_plaintext) {
 	if(site->use_tls && !force_plaintext) {
 		return SSL_read(site->secure_fd, buf, len);
 	} else {
@@ -34,7 +42,7 @@ ssize_t read_socket(struct site_info *site, void *buf, size_t len, bool force_pl
 	}
 }
 
-ssize_t write_socket(struct site_info *site, const void *buf, size_t len, bool force_plaintext) {
+ssize_t write_control_socket(struct site_info *site, const void *buf, size_t len, bool force_plaintext) {
 	if(site->use_tls && !force_plaintext) {
 		return SSL_write(site->secure_fd, buf, len);
 	} else {
@@ -50,7 +58,7 @@ bool __control_send(struct site_info *site, char *data, bool force_plaintext) {
 	log_w(data);
 
 	while(n_sent < len) {
-		n = write_socket(site, data+n_sent, len-n_sent, force_plaintext);
+		n = write_control_socket(site, data+n_sent, len-n_sent, force_plaintext);
 		n_sent += n;
 
 		if(n == -1) {
@@ -78,7 +86,7 @@ int32_t __control_recv(struct site_info *site, bool force_plaintext) {
 	//initial size 4k
 	site->last_recv = malloc(out_sz);
 
-	while((numbytes = read_socket(site, buf, CONTROL_BUF_SZ-1, force_plaintext)) != 0) {
+	while((numbytes = read_control_socket(site, buf, CONTROL_BUF_SZ-1, force_plaintext)) != 0) {
 		if (numbytes == -1) {
 			log_w("error recv\n");
 			return -1;
@@ -228,7 +236,7 @@ bool auth(struct site_info *site) {
 	return true;
 }
 
-bool ftp_connect(struct site_info *site) {
+int32_t open_socket(char *address, char *port) {
 	int32_t sockfd;
 	struct addrinfo hints, *servinfo, *p;
 	int32_t rv;
@@ -238,9 +246,9 @@ bool ftp_connect(struct site_info *site) {
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 
-	if ((rv = getaddrinfo(site->address, site->port, &hints, &servinfo)) != 0) {
+	if ((rv = getaddrinfo(address, port, &hints, &servinfo)) != 0) {
 		log_w("getaddrinfo: %s\n", gai_strerror(rv));
-		return false;
+		return -1;
 	}
 
 	// loop through all the results and connect to the first we can
@@ -260,15 +268,24 @@ bool ftp_connect(struct site_info *site) {
 	}
 
 	if (p == NULL) {
-		log_w("client: failed to connect\n");
-		return false;
+		log_w("socket: failed to connect\n");
+		return -1;
 	}
 
 	inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr), s, sizeof s);
 	log_w("client: connecting to %s\n", s);
 
 	freeaddrinfo(servinfo); // all done with this structure
+	return sockfd;
+}
 
+bool ftp_connect(struct site_info *site) {
+	int32_t sockfd = open_socket(site->address, site->port);
+
+	if(sockfd == -1) {
+		return false;
+	}
+	
 	site->socket_fd = sockfd;
 
 	uint32_t code = __control_recv(site, true);
@@ -287,3 +304,125 @@ void ftp_disconnect(struct site_info *site) {
 	close(site->socket_fd);
 	log_w("FTP session was terminated\n");
 }
+
+bool ftp_prot(struct site_info *site) {
+	control_send(site, "PROT P\n");
+
+	if(control_recv(site) == 200) {
+		site->prot_sent = true;
+		return true;
+	}
+
+	return false;
+}
+
+struct pasv_details *ftp_pasv(struct site_info *site, bool handshake) {
+	if(handshake) {
+		control_send(site, "CPSV\n");
+	} else {
+		control_send(site, "PASV\n");
+	}
+	
+	if(control_recv(site) != 227) {
+		return NULL;
+	}
+
+	struct pasv_details *pv = malloc(sizeof(struct pasv_details));
+
+	if(!parse_pasv(site->last_recv, pv->host, &pv->port)) {
+		return NULL;
+	}
+
+	return pv;
+}
+
+bool ftp_retr(struct site_info *site, char *filename) {
+	int slen = strlen(filename)+8;
+	char *s_retr = malloc(slen);
+
+	snprintf(s_retr, slen, "RETR %s\n", filename);
+	control_send(site, s_retr);
+
+	free(s_retr);
+
+	return control_recv(site) == 150;	
+}
+
+bool ftp_get(struct site_info *site, char *filename) {
+	if(!site->prot_sent) {
+		if(!ftp_prot(site)) {
+			return false;
+		}
+	}
+
+	struct pasv_details *pv = ftp_pasv(site, false);
+
+	if(pv == NULL) {
+    	return false;
+	}
+
+	char port[8];
+	sprintf(port, "%d", pv->port);
+
+	site->data_socket_fd = open_socket(pv->host, port);
+
+	if(site->data_socket_fd == -1) {
+		return false;
+	}
+
+	if(!ftp_retr(site, filename)) {
+		close(site->data_socket_fd);
+		return false;
+	}
+
+	if(site->use_tls) {
+		SSL_CTX *ctx = ssl_get_context();
+
+		if(ctx == NULL) {
+			log_w("failed to get SSL context\n");
+			close(site->data_socket_fd);
+			return false;
+		}
+
+		SSL *ssl = SSL_new(ctx);
+		SSL_set_fd(ssl, site->data_socket_fd);
+
+		if(SSL_connect(ssl) == -1) {
+			log_w("TLS FAILED, ERROR:\n");
+			ERR_print_errors_fp(stderr);
+			SSL_CTX_free(ctx);
+			close(site->data_socket_fd);
+			return false;
+		}
+
+		site->data_secure_fd = ssl;
+	}
+
+	char buf[DATA_BUF_SZ];
+	int32_t numbytes;
+	FILE *fd = fopen(filename, "wb");
+	
+	if(fd == NULL) {
+		log_w("error opening file for writing\n");
+		close(site->data_socket_fd);
+		return false;
+	}
+
+	while((numbytes = read_data_socket(site, buf, DATA_BUF_SZ-1, false)) != 0) {
+		if (numbytes == -1) {
+			log_w("error recv\n");
+			break;
+		}
+		
+//		for(int i = 0; i < numbytes; i++) {
+		fwrite(buf, sizeof(char), numbytes, fd);
+//		}
+	}
+
+	fclose(fd);
+	close(site->data_socket_fd);
+	printf("recv done");
+
+	return control_recv(site) == 226;
+}
+

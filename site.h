@@ -11,8 +11,6 @@
 #define SITE_PASS_MAX 1024
 #define SITE_PORT_MAX 6
 
-
-
 struct site_info {
 	char name[SITE_NAME_MAX];
 	char address[SITE_HOST_MAX];
@@ -20,13 +18,16 @@ struct site_info {
 	char username[SITE_USER_MAX];
 	char password[SITE_PASS_MAX];
 	int32_t socket_fd;
+	int32_t data_socket_fd;
 	bool use_tls;
 	SSL* secure_fd;
+	SSL* data_secure_fd;
 	char current_working_dir[MAX_PATH_LEN];
 	struct linked_str_node *cmd_list;
 	pthread_t thread;
 	uint32_t thread_id;
 	char *last_recv;
+	bool prot_sent;
 };
 
 struct site_pair {

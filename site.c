@@ -18,8 +18,10 @@ struct site_info *site_init(char *name, char *address, char *port, char *usernam
 	strlcpy(site->password, password, SITE_PASS_MAX);
 	site->use_tls = use_tls;
 	site->last_recv = NULL;
+	site->prot_sent = false;
 
 	site_set_cwd(site, "/");
+
 
 	return site;
 }
