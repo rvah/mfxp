@@ -3,6 +3,8 @@
 
 bool match_rule(const char *rule, const char *str);
 void str_ltrim(char *s);
+void str_rtrim(char *s);
+void str_rtrim_special_only(char *s);
 void str_trim(char *s);
 void str_rtrim_slash(char *s);
 bool file_exists (char *filename);

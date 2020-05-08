@@ -35,6 +35,10 @@ void init() {
 	msg_init();
 	ssl_init();
 	config_read("config.ini");
+
+	//start ident thread
+	pthread_t ident_thread;
+	pthread_create(&ident_thread, NULL, thread_ident, NULL);
 }
 
 void destroy() {

@@ -44,7 +44,7 @@ void str_ltrim(char *s) {
 	memmove(s, s+shift_n, len-shift_n+1);
 }
 
-void str_rtrim(char *s) {
+void __str_rtrim(char *s, bool trim_space) {
 	size_t len = strlen(s);
 	
 	if(len == 0) {
@@ -52,10 +52,21 @@ void str_rtrim(char *s) {
 	}
 	
 	s += len-1;
-	while(*s <= 0x20) {
+
+	char treshold = trim_space ? 0x1F : 0x20;
+
+	while(*s <= treshold) {
 		*s = '\0';
 		s--;
 	}
+}
+
+void str_rtrim(char *s) {
+	return __str_rtrim(s, false);
+}
+
+void str_rtrim_special_only(char *s) {
+	return __str_rtrim(s, true);
 }
 
 void str_trim(char *s) {

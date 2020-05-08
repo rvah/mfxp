@@ -3,6 +3,7 @@
 #include "general.h"
 
 #define THREAD_ID_UI 0
+#define THREAD_ID_IDENT 1
 
 #define EV_SITE_LS 1
 #define EV_SITE_CWD 2

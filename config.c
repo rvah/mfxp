@@ -133,6 +133,8 @@ static int ini_read_handler(void* user, const char* section, const char* name, c
 				return 0;
 			}
 		}
+	} else if(strcmp(s_name, "ident") == 0) {
+		ident_set_setting(name, value);
 	}
 
 	return 1;

@@ -18,6 +18,8 @@ FILES = main.c \
 		priolist.c \
 		hilight.c \
 		ui_indicator.c \
+		net.c \
+		ident.c \
 		libs/inih/ini.c
 
 LIBS = -lssl -lcrypto -lbsd -lreadline -lpthread

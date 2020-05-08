@@ -1,5 +1,10 @@
 #include "thread.h"
 
+void *thread_ident(void *ptr) {
+	ident_start();
+	return 0;
+}
+
 void *thread_indicator(void *ptr) {
 	indicator_start();
 
@@ -7,7 +12,7 @@ void *thread_indicator(void *ptr) {
 }
 
 uint32_t thread_gen_id() {
-	static uint32_t id = 1;
+	static uint32_t id = 100;
 	return id++;
 }
 

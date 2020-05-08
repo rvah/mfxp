@@ -14,6 +14,60 @@ void site_set_cwd(struct site_info *site, char *cwd) {
 	strlcpy(site->current_working_dir, cwd, MAX_PATH_LEN);
 }
 
+void site_list_add_site(struct site_list **list, struct site_info *site) {
+	if(*list == NULL) {
+		(*list) = malloc(sizeof(struct site_list));
+		(*list)->site = site;
+		(*list)->next = NULL;
+	} else {
+		struct site_list *new_node = malloc(sizeof(struct site_list));
+		new_node->site = site;
+		new_node->next = *list;
+		*list = new_node;
+	}	
+}
+
+struct site_list *site_get_all() {
+	struct site_pair *p = site_get_current_pair();
+
+	struct site_list *list = NULL;
+
+	if(p->left != NULL) {
+		site_list_add_site(&list, p->left);
+	}
+
+	if(p->right != NULL) {
+		site_list_add_site(&list, p->right);
+	}
+
+	return list;
+}
+
+void site_destroy_list(struct site_list *list) {
+	struct site_list *l = NULL;
+	while(list != NULL) {
+		l = list;
+		list = list->next;
+		free(l);
+	}
+}
+
+struct site_list *site_get_sites_connecting() {
+	struct site_list *all_sites = site_get_all();
+	struct site_list *l = all_sites;
+	struct site_list *r = NULL;
+
+	while(l != NULL) {
+		if(l->site->is_connecting) {
+			site_list_add_site(&r, l->site);
+		}
+
+		l = l->next;		
+	}	
+
+	return r;
+}
+
 struct site_info *site_init(char *name, char *address, char *port, char *username, char *password, bool use_tls) {
 	struct site_info *site = malloc(sizeof(struct site_info));
 	
@@ -31,6 +85,7 @@ struct site_info *site_init(char *name, char *address, char *port, char *usernam
 	site->enable_sscn = false;
 	site->sscn_on = false;
 	site->enforce_sscn_server_mode = false;
+	site->is_connecting = false;
 
 	site_set_cwd(site, "/");
 

@@ -11,12 +11,14 @@
 #include "util.h"
 #include "ui_helpers.h"
 #include "ui_indicator.h"
+#include "ident.h"
 
 struct fxp_arg {
 	char *filename;
 	struct site_info *dst;
 };
 
+void *thread_ident(void *ptr);
 void *thread_indicator(void *ptr);
 void *thread_ui(void *ptr);
 void *thread_site(void *ptr);
