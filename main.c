@@ -27,7 +27,9 @@ void show_logo() {
 	printf(TCOL_RED "       .   _ __ ___ ___ _______        _        _______ ____ ___ __ _  .            \n" TCOL_RESET);
 	printf(TCOL_RED "       |____________  / \\     //    .// \\\\.    \\\\     / \\  ____________|      \n" TCOL_RESET);
 	printf(TCOL_RED "                 bHe\\//. \\   ///.  __/   \\__  .\\\\\\   / .\\\\/sE!              \n" TCOL_RESET);
-	printf(TCOL_RED "                          \\_______/         \\_______/                             \n\n" TCOL_RESET);
+	printf(TCOL_RED "                          \\_______/         \\_______/                             \n" TCOL_RESET);
+	printf(TCOL_GREEN "       Version %s\n\n" TCOL_RESET, MFXP_VERSION);
+
 }
 
 void init() {

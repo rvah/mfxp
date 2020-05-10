@@ -1,9 +1,14 @@
 #include "log.h"
 
 FILE *logfd;
+pthread_mutex_t log_mtx;
 
 bool log_init() {
-	logfd = fopen("mfxp.log", "a");
+	if(pthread_mutex_init(&log_mtx, NULL) != 0) {
+		return false;
+	}
+
+	logfd = fopen("mfxp.log", "a+");
 	return logfd != NULL;
 }
 
@@ -11,12 +16,50 @@ void log_cleanup() {
 	fclose(logfd);
 }
 
+void log_print(uint32_t n) {
+	pthread_mutex_lock(&log_mtx);
+
+	//count lines
+	rewind(logfd);
+
+	uint64_t max_n = 0;
+	uint64_t cur_line = 0;
+	char c;
+
+	while((c = fgetc(logfd)) != EOF) {
+		if(c == '\n') {
+			max_n++;
+		}
+	}
+
+	//loop through again and print n last lines
+	fseek(logfd, 0L, SEEK_SET);
+
+	while((c = fgetc(logfd)) != EOF) {
+		if( (max_n - cur_line) <= n) {
+			printf("%c", c);
+		}
+
+		if(c == '\n') {
+			cur_line++;
+		}
+	}
+
+	fseek(logfd, 0L, SEEK_END);
+
+	pthread_mutex_unlock(&log_mtx);
+}
+
 void log_w(char *format, ...) {
+	pthread_mutex_lock(&log_mtx);	
+
 	va_list args;
 	va_start(args, format);
 	vfprintf(logfd, format, args);
 	va_end(args);
 	fflush(logfd);
+
+	pthread_mutex_unlock(&log_mtx);
 }
 
 void log_ui(uint32_t from_id, uint32_t type, char *format, ...) {

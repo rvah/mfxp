@@ -15,6 +15,8 @@
 #define EV_SITE_SITE 8
 #define EV_SITE_QUOTE 9
 #define EV_SITE_MKDIR 10
+#define EV_SITE_VIEW_NFO 11
+
 #define EV_UI_LOG 101
 #define EV_UI_RM_SITE 102
 

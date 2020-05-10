@@ -15,6 +15,10 @@
 #include <wordexp.h>
 #include <sys/time.h>
 
+#define MFXP_VERSION "1.0-alpha-1"
+
+#define NFO_DL_MAX_SZ 102400
+
 struct linked_str_node {
 	char *str;
 	struct linked_str_node *next;

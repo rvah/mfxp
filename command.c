@@ -27,6 +27,9 @@ char *get_arg_full(char *line, int i) {
 		strtok_r(NULL, " \t", &save);
 	}
 
+	//trim
+	str_trim(save);
+
 	return save;
 }
 
@@ -156,7 +159,7 @@ void cmd_cd(char *line, char which) {
 		return;
 	}
 
-	char *arg_path = get_arg(line, 1);
+	char *arg_path = get_arg_full(line, 1);
 
 	if(arg_path == NULL) {
 		bad_arg("cd");
@@ -174,7 +177,7 @@ void cmd_put(char *line, char which) {
 		return;
 	}
 
-	char *arg_path = get_arg(line, 1);
+	char *arg_path = get_arg_full(line, 1);
 
 	if(arg_path == NULL) {
 		bad_arg("put");
@@ -192,7 +195,7 @@ void cmd_get(char *line, char which) {
 		return;
 	}
 
-	char *arg_path = get_arg(line, 1);
+	char *arg_path = get_arg_full(line, 1);
 
 	if(arg_path == NULL) {
 		bad_arg("get");
@@ -209,7 +212,7 @@ void cmd_rm(char *line, char which) {
 		return;
 	}
 
-	char *arg_path = get_arg(line, 1);
+	char *arg_path = get_arg_full(line, 1);
 
 	if(arg_path == NULL) {
 		bad_arg("rm");
@@ -268,7 +271,7 @@ void cmd_fxp(char *line, char which) {
 		return;
 	}
 
-	char *arg_path = get_arg(line, 1);
+	char *arg_path = get_arg_full(line, 1);
 	
 	if(arg_path == NULL) {
 		bad_arg("fxp");
@@ -295,5 +298,64 @@ void cmd_mkdir(char *line, char which) {
 }
 
 void cmd_quit(char *line, char which) {
+	//TODO: proper cleanup needed :)
 	exit(0);
+}
+
+void cmd_log(char *line, char which) {
+	char *arg = get_arg(line, 1);
+
+	uint32_t n_lines = 50;
+
+	if((arg != NULL) && (strlen(arg) > 0)) {
+		str_trim(arg);
+
+		n_lines = atoi(arg);
+
+		//put a reasonable limit..
+		if(n_lines > 10000) {
+			n_lines = 10000;
+		}
+
+		if(n_lines == 0) {
+			n_lines = 50;
+		}
+	}
+
+	log_print(n_lines);
+}
+
+void cmd_nfo(char *line, char which) {
+	struct site_info *s = cmd_get_site(which);
+
+	if(s == NULL) {
+		printf("no site connected.\n");
+		return;
+	}
+
+	char *arg_path = get_arg_full(line, 1);
+
+	if(arg_path == NULL) {
+		bad_arg("nfo");
+		return;
+	}
+
+	char *d = strdup(arg_path);
+	str_tolower(d);
+
+	const char *pos = strrchr(d, '.');
+
+	if(!pos || pos == d) {
+		printf("unable to read file type\n");
+		return;
+	}
+
+	if( (strcmp(pos+1, "nfo") != 0) && (strcmp(pos+1, "sfv") != 0) && (strcmp(pos+1, "diz") != 0) && (strcmp(pos+1, "txt") != 0) ) {
+		printf("bad filetype, supported filetypes: nfo, sfv, diz, txt\n");
+		return;
+	}
+
+	free(d);
+
+	cmd_execute(s->thread_id, EV_SITE_VIEW_NFO, (void *)arg_path);
 }

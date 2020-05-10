@@ -198,3 +198,9 @@ char *s_get_speed(double speed) {
 char *s_calc_transfer_speed(struct timeval *start, struct timeval *end, uint64_t size) {
 	return s_get_speed(calc_transfer_speed(start, end, size));
 }
+
+void str_tolower(char *s) {
+	for(int i = 0; s[i]; i++) {
+		s[i] = tolower(s[i]);
+	}
+}

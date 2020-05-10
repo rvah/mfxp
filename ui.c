@@ -19,6 +19,7 @@ char *commands[] = {
 	"help",
 	"open",
 	"close",
+	"log",
 	"lls","rls",
 	"lref","rref",
 	"lcd","rcd",
@@ -30,6 +31,7 @@ char *commands[] = {
 	"lopen","ropen",
 	"lfxp","rfxp",
 	"lmkdir","rmkdir",
+	"lnfo", "rnfo",
 	"quit","exit",
 	NULL
 };
@@ -122,6 +124,9 @@ void parse_command_line(char *line) {
 	} else if((strcmp(item, "quit") == 0) || (strcmp(item, "exit") == 0)) {
 		cmd_quit(line, ' ');
 		return;
+	} else if((strcmp(item, "log") == 0)) {
+		cmd_log(line, ' ');
+		return;
 	}
 
 	char which = item[0];
@@ -164,6 +169,9 @@ void parse_command_line(char *line) {
 		return;
 	} else if(strcmp(item, "mkdir") == 0) {
 		cmd_mkdir(line, which);
+		return;
+	} else if(strcmp(item, "nfo") == 0) {
+		cmd_nfo(line, which);
 		return;
 	}
 

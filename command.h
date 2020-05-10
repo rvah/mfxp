@@ -22,3 +22,5 @@ void cmd_quote(char *line, char which);
 void cmd_fxp(char *line, char which);
 void cmd_mkdir(char *line, char which);
 void cmd_quit(char *line, char which);
+void cmd_log(char *line, char which);
+void cmd_nfo(char *line, char which);

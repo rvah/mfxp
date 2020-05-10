@@ -38,6 +38,9 @@ void thread_ui_handle_event(struct msg *m) {
 			case LOG_T_I:
 				printf(TCOL_GREEN "[i] " TCOL_RESET);
 				break;
+			case LOG_T_D:
+				printf(TCOL_BLUE "[data]:\n" TCOL_RESET);
+				break;
 		}
 
 		printf("%s", d->str);
@@ -46,6 +49,10 @@ void thread_ui_handle_event(struct msg *m) {
 		rl_replace_line(save_rl_line, 0);
 		rl_redisplay();
 		free(save_rl_line);
+
+		if(d->type == LOG_T_D) {
+			free(d->str);
+		}
 		break;
 	case EV_UI_RM_SITE: ;
 		struct site_pair *pair = site_get_current_pair();
@@ -356,6 +363,60 @@ void thread_site_handle_event(struct msg *m, struct site_info *s) {
 		} else {
 			log_ui(s->thread_id, LOG_T_E, "%s: error creating dir\n", (char *)m->data);
 		}
+		break;
+	case EV_SITE_VIEW_NFO:
+		if(m->data == NULL) {
+			printf("EV_SITE_VIEW_NFO: bad path\n");
+			break;
+		}
+
+		str_rtrim_slash((char *)m->data);
+		struct file_item *nfile = find_file(s->cur_dirlist, (char *)m->data);
+
+		if(nfile == NULL) {
+			log_ui(s->thread_id, LOG_T_E, "%s: no such file exists!\n", (char *)m->data);
+			break;
+		}
+
+		if(nfile->file_type == FILE_TYPE_FILE) {
+			if(nfile->size > NFO_DL_MAX_SZ) {
+				log_ui(s->thread_id, LOG_T_E, "%s: exceeds max size of %d bytes!\n", (char *)m->data, NFO_DL_MAX_SZ);
+				break;
+			}
+
+			if(!ftp_get(s, (char *)m->data, "/tmp/", s->current_working_dir)) {
+				log_ui(s->thread_id, LOG_T_E, "%s: download failed!\n", (char *)m->data);
+				break;
+			}
+
+			char *nfo_path = path_append_file("/tmp/", (char *)m->data);
+			char c;
+			FILE *nfd = fopen(nfo_path, "r");
+
+			if(nfd == NULL) {
+				log_ui(s->thread_id, LOG_T_E, "%s: error opening tmp file!\n", (char *)m->data);
+				break;
+			}
+
+			char *nfo_data = malloc(NFO_DL_MAX_SZ+1);
+			uint32_t ni = 0;
+
+			while((c = fgetc(nfd)) != EOF) {
+				nfo_data[ni] = c;
+				ni++;				
+			}
+
+			nfo_data[ni] = '\0'; //ensure 0 termination
+			
+			fclose(nfd);
+			unlink(nfo_path);
+			free(nfo_path);
+			log_ui(s->thread_id, LOG_T_D, "%s\n", nfo_data);
+		} else {
+			log_ui(s->thread_id, LOG_T_E, "%s: invalid file type!\n", (char *)m->data);
+			break;
+		}
+
 		break;
 	}
 
