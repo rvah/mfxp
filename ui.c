@@ -20,6 +20,11 @@ char *commands[] = {
 	"open",
 	"close",
 	"log",
+	"ls",
+	"cd",
+	"rm",
+	"mkdir",
+
 	"lls","rls",
 	"lref","rref",
 	"lcd","rcd",
@@ -126,6 +131,18 @@ void parse_command_line(char *line) {
 		return;
 	} else if((strcmp(item, "log") == 0)) {
 		cmd_log(line, ' ');
+		return;
+	} else if((strcmp(item, "ls") == 0)) {
+		cmd_local_ls(line);
+		return;
+	} else if((strcmp(item, "cd") == 0)) {
+		cmd_local_cd(line);
+		return;
+	} else if((strcmp(item, "rm") == 0)) {
+		cmd_local_rm(line);
+		return;
+	} else if((strcmp(item, "mkdir") == 0)) {
+		cmd_local_mkdir(line);
 		return;
 	}
 

@@ -939,7 +939,7 @@ bool ftp_put_recursive(struct site_info *site, char *dirname, char *local_dir, c
 		return false;
 	}
 
-	struct file_item *l_list = local_ls(new_lpath);
+	struct file_item *l_list = local_ls(new_lpath, true);
 	struct file_item *lp = l_list;
 
 	if(lp == NULL) {

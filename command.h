@@ -6,6 +6,7 @@
 #include "config.h"
 #include "msg.h"
 #include "thread.h"
+#include "filesystem.h"
 
 void cmd_help(char *line);
 void cmd_open(char *line, char which);
@@ -24,3 +25,8 @@ void cmd_mkdir(char *line, char which);
 void cmd_quit(char *line, char which);
 void cmd_log(char *line, char which);
 void cmd_nfo(char *line, char which);
+
+void cmd_local_ls(char *line);
+void cmd_local_cd(char *line);
+void cmd_local_rm(char *line);
+void cmd_local_mkdir(char *line);

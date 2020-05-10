@@ -29,7 +29,7 @@ struct file_item {
 };
 
 struct file_item *find_local_file(char *path, char *filename);
-struct file_item *local_ls(char *path);
+struct file_item *local_ls(char *path, bool prio_sort);
 struct file_item *find_file(struct file_item *list, char *filename);
 void print_file_item(struct file_item *item);
 struct file_item *parse_list(char *text_list);

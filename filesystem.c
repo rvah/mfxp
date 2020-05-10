@@ -17,8 +17,20 @@ struct sort_node *priority_comparator(void *a, void *b) {
 	return b;
 }
 
-void dirlist_sort(struct file_item **list) {
-	merge_sort((struct sort_node **)list, priority_comparator);
+struct sort_node *az_comparator(void *a, void *b) {
+	//if not sort by A-Z
+	if(((struct file_item *)a)->file_name[0] <= ((struct file_item *)b)->file_name[0]) {
+		return a;
+	}
+	return b;
+}
+
+void dirlist_sort(struct file_item **list, bool prio_sort) {
+	if(prio_sort) {
+		merge_sort((struct sort_node **)list, priority_comparator);
+	} else {
+		merge_sort((struct sort_node **)list, az_comparator);
+	}
 }
 
 struct file_item *find_local_file(char *path, char *filename) {
@@ -51,7 +63,7 @@ struct file_item *find_local_file(char *path, char *filename) {
 	return item;
 }
 
-struct file_item *local_ls(char *path) {
+struct file_item *local_ls(char *path, bool prio_sort) {
 	DIR *dir;
 	struct dirent *ent;
 	struct file_item *list = NULL;
@@ -85,7 +97,7 @@ struct file_item *local_ls(char *path) {
 		}
 	}
 
-	dirlist_sort(&list);
+	dirlist_sort(&list, prio_sort);
 
 	return list;
 }
@@ -165,7 +177,7 @@ struct file_item *parse_list(char *text_list) {
 		line = strtok_r(NULL, "\n", &save);
 	}
 
-	dirlist_sort(&first_item);
+	dirlist_sort(&first_item, true);
 
 	return first_item;
 }

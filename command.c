@@ -359,3 +359,70 @@ void cmd_nfo(char *line, char which) {
 
 	cmd_execute(s->thread_id, EV_SITE_VIEW_NFO, (void *)arg_path);
 }
+
+void cmd_local_ls(char *line) {
+	struct file_item *fl = local_ls("./", false);
+	struct file_item *prev = NULL;
+
+	char cwd[PATH_MAX];
+	getcwd(cwd, sizeof(cwd));
+
+	log_ui(THREAD_ID_UI, LOG_T_I, TCOL_GREEN "[%s]:\n" TCOL_RESET, cwd);
+
+	while(fl != NULL) {
+		//TODO: clean up
+		char *f_size = parse_file_size(fl->size);
+
+		if(fl->skip) {
+			log_ui(THREAD_ID_UI, LOG_T_I, TCOL_RED "%5s %s\n" TCOL_RESET, f_size, fl->file_name);
+		} else if(fl->hilight) {
+			log_ui(THREAD_ID_UI, LOG_T_I, TCOL_YELLOW "%5s %s\n" TCOL_RESET, f_size, fl->file_name);
+		} else {
+			switch(fl->file_type) {
+			case FILE_TYPE_FILE:
+				log_ui(THREAD_ID_UI, LOG_T_I, TCOL_PINK "%5s %s\n" TCOL_RESET, f_size, fl->file_name);
+				break;
+			case FILE_TYPE_DIR:
+				log_ui(THREAD_ID_UI, LOG_T_I, TCOL_GREEN "%5s %s/\n" TCOL_RESET, f_size, fl->file_name);
+				break;
+			case FILE_TYPE_LINK:
+				log_ui(THREAD_ID_UI, LOG_T_I, TCOL_CYAN "%5s %s\n" TCOL_RESET, f_size, fl->file_name);
+				break;
+			}
+		}
+
+		free(f_size);
+		prev = fl;
+		fl = fl->next;
+		free(prev);
+	}
+}
+
+void cmd_local_cd(char *line) {
+	char *arg_path = get_arg_full(line, 1);
+
+	if( (arg_path == NULL) || (strlen(arg_path) == 0)) {
+		printf("bad path\n");
+	}
+
+	str_trim(arg_path);
+
+	if(chdir(arg_path) != 0) {
+		log_ui(THREAD_ID_UI, LOG_T_E,"%s: error CWD\n", arg_path);
+		return;
+	}
+
+	log_ui(THREAD_ID_UI, LOG_T_I,"cwd successful.\n");
+
+	return;
+}
+
+void cmd_local_rm(char *line) {
+	printf("not implemented.\n");
+	return;
+}
+
+void cmd_local_mkdir(char *line) {
+	printf("not implemented.\n");
+	return;
+}
