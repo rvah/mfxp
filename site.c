@@ -86,11 +86,30 @@ struct site_info *site_init(char *name, char *address, char *port, char *usernam
 	site->sscn_on = false;
 	site->enforce_sscn_server_mode = false;
 	site->is_connecting = false;
+	site->xdupe_enabled = false;
+	site->xdupe_table = dict_create();
+	site->xdupe_empty = true;
 
 	site_set_cwd(site, "/");
 
 
 	return site;
+}
+
+void site_xdupe_add(struct site_info *site, const char *file) {
+	if(!dict_has_key(site->xdupe_table, file)) {
+		dict_set(site->xdupe_table, file, NULL);
+		site->xdupe_empty = false;
+	}
+}
+
+void site_xdupe_clear(struct site_info *site) {
+	dict_clear(site->xdupe_table, false);
+	site->xdupe_empty = true;
+}
+
+bool site_xdupe_has(struct site_info *site, const char *file) {
+	return dict_has_key(site->xdupe_table, file);
 }
 
 struct site_pair *site_get_current_pair() {

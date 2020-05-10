@@ -2,9 +2,14 @@
 
 struct config *app_conf = NULL;
 
+struct config *config_get_conf() {
+	return app_conf;
+}
+
 void config_init() {
 	app_conf = malloc(sizeof(struct config));
 	app_conf->sites = NULL;
+	app_conf->enable_xdupe = false;
 }
 
 void print_site_configs() {
@@ -132,6 +137,11 @@ static int ini_read_handler(void* user, const char* section, const char* name, c
 				printf("failed to init hilight.\n");
 				return 0;
 			}
+		} else if(strcmp(name, "enable_xdupe") == 0) {
+			char *s_xdupe = strdup(value);
+			str_trim(s_xdupe);
+			app_conf->enable_xdupe = strcmp(s_xdupe, "true") == 0;
+			free(s_xdupe);	
 		}
 	} else if(strcmp(s_name, "ident") == 0) {
 		ident_set_setting(name, value);

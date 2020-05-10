@@ -204,6 +204,12 @@ bool ftp_pwd(struct site_info *site) {
 
 	free(pwd);
 	log_w("pwd set to %s\n", site->current_working_dir);
+
+	//always clear xdupe on cwd, to prevent annoying cache
+	if(!site->xdupe_empty) {
+		site_xdupe_clear(site);
+	}
+
 	return true;
 }
 
@@ -248,6 +254,21 @@ bool ftp_feat(struct site_info *site) {
 	}
 
 	return true;
+}
+
+bool ftp_xdupe(struct site_info *site, uint32_t level) {
+	char s[16];
+
+	snprintf(s, 16, "SITE XDUPE %d\r\n", level);
+
+	control_send(site, s);
+	bool ret = control_recv(site) == 200;
+
+	if(ret) {
+		site->xdupe_enabled = true;
+	}
+
+	return ret;
 }
 
 bool auth(struct site_info *site) {
@@ -321,6 +342,11 @@ bool auth(struct site_info *site) {
 
 	//get features
 	ftp_feat(site);
+
+	//enable xdupe if set in conf
+	if(config_get_conf()->enable_xdupe) {
+		ftp_xdupe(site, 3);
+	}
 
 	//get initial filelist && ret
 	return ftp_ls(site) && ftp_pwd(site);
@@ -408,7 +434,32 @@ bool ftp_stor(struct site_info *site, char *filename) {
 
 	free(s_retr);
 
-	return control_recv(site) == 150;
+	bool ret = control_recv(site) == 150;
+
+	//if xdupe enabled and there are xdupe strings in output, parse it
+	if(site->xdupe_enabled && (strstr(site->last_recv, "X-DUPE") != NULL)) {
+		struct linked_str_node *xdupe_list = parse_xdupe(site->last_recv);
+		struct linked_str_node *tmp_node;
+
+		char *p_dir = str_get_path(filename);
+
+		while(xdupe_list != NULL) {
+			char *path = path_append_file(p_dir, xdupe_list->str);
+
+			site_xdupe_add(site, path);
+
+			tmp_node = xdupe_list;
+			xdupe_list = xdupe_list->next;
+
+			//free data
+			free(path);
+			free(tmp_node);
+		}
+
+		free(p_dir);
+	}
+
+	return ret;
 }
 
 bool ftp_open_data(struct site_info *site) {
@@ -612,19 +663,30 @@ bool ftp_put(struct site_info *site, char *filename, char *local_dir, char *remo
 
 	free(local_file);
 
+	char *new_rpath = path_append_file(remote_dir, filename);
+
+	if(site->xdupe_enabled) {
+		if(site_xdupe_has(site, new_rpath)) {
+			log_ui(site->thread_id, LOG_T_W, "%s: skip (x-dupe)\n", filename);
+			free(new_rpath);
+			return true;
+		}
+	}
+
 	//make sure sscn is off
 	if(site->enable_sscn) {
 		if(!ftp_sscn(site, false)) {
+			free(new_rpath);
 			return false;
 		}
 	}
 
 	if(!ftp_open_data(site)) {
+		free(new_rpath);
 		return false;
 	}
 
 	char *new_lpath = path_append_file(local_dir, filename);
-	char *new_rpath = path_append_file(remote_dir, filename);
 
 	if(!ftp_stor(site, new_rpath)) {
 		close(site->data_socket_fd);
@@ -935,12 +997,25 @@ bool fxp(struct site_info *src, struct site_info *dst, char *filename, char *src
 		return true;
 	}
 
+	char *new_dpath = path_append_file(dst_dir, filename);
+
+	if(dst->xdupe_enabled) {
+		if(site_xdupe_has(dst, new_dpath)) {
+			log_ui(dst->thread_id, LOG_T_W, "%s: skip (x-dupe)\n", filename);
+			free(new_dpath);
+			return true;
+		}
+	}
+
+
 	if(use_sscn) {
 		if(!ftp_sscn(src, !src->enforce_sscn_server_mode)) {
+			free(new_dpath);
 			return false;
 		}
 
 		if(!ftp_sscn(dst, src->enforce_sscn_server_mode)) {
+			free(new_dpath);
 			return false;
 		}
 	}
@@ -949,6 +1024,7 @@ bool fxp(struct site_info *src, struct site_info *dst, char *filename, char *src
 	struct pasv_details *pv = ftp_pasv(src, src->use_tls && !use_sscn);
 
 	if(pv == NULL) {
+		free(new_dpath);
 		return false;
 	}
 
@@ -958,38 +1034,26 @@ bool fxp(struct site_info *src, struct site_info *dst, char *filename, char *src
 
 	control_send(dst, s_port);
 	if(control_recv(dst) != 200) {
-		return false;
-	}
-
-	free(s_port);
-	char *new_spath = path_append_file(src_dir, filename);
-	char *new_dpath = path_append_file(dst_dir, filename);
-
-	s_len = strlen(new_dpath) + 9;
-	char *s_stor = malloc(s_len);
-	snprintf(s_stor, s_len, "STOR %s\r\n", new_dpath);
-
-	control_send(dst, s_stor);
-	if(control_recv(dst) != 150) {
-		free(new_spath);
 		free(new_dpath);
 		return false;
 	}
 
-	free(s_stor);
+	free(s_port);
 
-	s_len = strlen(new_spath) + 9;
-	char *s_retr = malloc(s_len);
-	snprintf(s_retr, s_len, "RETR %s\r\n", new_spath);
+	char *new_spath = path_append_file(src_dir, filename);
+
+	if(!ftp_stor(dst, new_dpath)) {
+		free(new_spath);
+		free(new_dpath);
+		return false;
+	}
 
 	//also mark dst as busy
 	site_busy(dst);
 
 	gettimeofday(&time_start, NULL);
 
-	control_send(src, s_retr);
-
-	if(control_recv(src) != 150) {
+	if(!ftp_retr(src, new_spath)) {
 		//if retr fails, cancel the STOR with pasv trick
 		control_send(src, "PASV\r\n");
 		control_recv(src);

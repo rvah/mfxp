@@ -10,10 +10,6 @@ void config_cleanup();
 struct site_config *get_site_config_by_name(char *name);
 bool config_read(char *path);
 
-struct general_config {
-	char dummy[255];
-};
-
 struct site_config {
 	uint32_t id;
 	char name[255];
@@ -26,6 +22,8 @@ struct site_config {
 };
 
 struct config {
-	struct general_config *app;
 	struct site_config *sites;
+	bool enable_xdupe;
 };
+
+struct config *config_get_conf();

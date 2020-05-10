@@ -183,3 +183,53 @@ struct linked_str_node *parse_feat(const char *in) {
 
 	return r;
 }
+
+struct linked_str_node *parse_xdupe(const char *in) {
+	struct linked_str_node *out = NULL;
+	char *save, *save2;
+	char *_in = strdup(in);
+	char *item;
+
+	char *line = strtok_r(_in, "\n", &save);
+
+	while(line != NULL) {
+
+		//strip everything until first 'X' or \0
+		while((*line != 'X') && (*line != '\0')) {
+			line++;
+		}
+
+		//if line[0] = X then continue process if not we can just continue
+		if(*line == 'X') {
+			//format: 553- X-DUPE: file.bin (after preprocess)=> X-DUPE: file.bin
+			str_trim(line);
+
+			item = strtok_r(line, " \t", &save2);
+
+			if((item != NULL) && (strcmp(item, "X-DUPE:") == 0)) {
+				item = strtok_r(NULL, " \t", &save2);
+
+				if(item != NULL) {
+					str_trim(item);
+
+					if(strlen(item) > 0) {
+						struct linked_str_node *node = malloc(sizeof(struct linked_str_node));
+						node->str = item;
+						node->next = NULL;
+
+						if(out == NULL) {
+							out = node;
+						} else {
+							node->next = out;
+							out = node;
+						}
+					}
+				}
+			}
+		}
+
+		line = strtok_r(NULL, "\n", &save);
+	}
+
+	return out;
+}

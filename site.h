@@ -4,6 +4,7 @@
 #include <pthread.h>
 #include "general.h"
 #include "filesystem.h"
+#include "dictionary.h"
 
 #define SITE_NAME_MAX 1024
 #define SITE_HOST_MAX 1024
@@ -41,6 +42,9 @@ struct site_info {
 	bool sscn_on;
 	bool enforce_sscn_server_mode;
 	bool is_connecting;
+	bool xdupe_enabled;
+	struct dict_node **xdupe_table;
+	bool xdupe_empty;
 };
 
 struct site_pair {
@@ -56,6 +60,9 @@ struct site_list *site_get_all();
 void site_destroy_list(struct site_list *list);
 struct site_list *site_get_sites_connecting();
 struct site_info *site_init(char *name, char *address, char *port, char *username, char *password, bool use_tls);
+void site_xdupe_add(struct site_info *site, const char *file);
+void site_xdupe_clear(struct site_info *site);
+bool site_xdupe_has(struct site_info *site, const char *file);
 struct site_pair *site_get_current_pair();
 void site_destroy_pair(struct site_pair *pair);
 uint32_t site_gen_id();

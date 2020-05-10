@@ -20,6 +20,7 @@ FILES = main.c \
 		ui_indicator.c \
 		net.c \
 		ident.c \
+		dictionary.c \
 		libs/inih/ini.c
 
 LIBS = -lssl -lcrypto -lbsd -lreadline -lpthread
