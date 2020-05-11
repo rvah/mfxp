@@ -12,6 +12,7 @@
 #include "ui_helpers.h"
 #include "ui_indicator.h"
 #include "ident.h"
+#include "command.h"
 
 struct fxp_arg {
 	char *filename;

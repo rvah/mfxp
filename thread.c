@@ -151,6 +151,11 @@ void thread_site_handle_event(struct msg *m, struct site_info *s) {
 		//flag to just read cache for next ls cmd
 		s->ls_do_cache = true;
 
+		//if conf set, list dir
+		if(config_get_conf()->show_dirlist_on_cwd) {
+			cmd_execute(s->thread_id, EV_SITE_LS, NULL);
+		}
+
 		break;
 	case EV_SITE_CLOSE:
 		ftp_disconnect(s);
@@ -446,6 +451,10 @@ void *thread_site(void *ptr) {
 	} else {
 		site->ls_do_cache = true;
 		log_ui(site->thread_id, LOG_T_I, "Connected to %s\n", site->name);
+
+		if(config_get_conf()->show_dirlist_on_cwd) {
+			cmd_execute(site->thread_id, EV_SITE_LS, NULL);
+		}
 	}
 
 	//if(!ftp_ls(site)) {

@@ -102,7 +102,7 @@ struct file_item *local_ls(char *path, bool prio_sort) {
 	return list;
 }
 
-struct file_item *find_file(struct file_item *list, char *filename) {
+struct file_item *find_file(struct file_item *list, const char *filename) {
 	if(list == NULL) {
 		return NULL;
 	}

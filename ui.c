@@ -109,6 +109,13 @@ char *command_arg_generator(const char *text, int state) {
 }
 
 void parse_command_line(char *line) {
+	//if NULL, ctrl+d probably pressed. terminate.
+	if(line == NULL) {
+		printf("\n"); //make it pretty!
+		cmd_quit(line, ' ');
+		return;
+	}
+
 	char *save;
 	char *item = strtok_r(strdup(line), " \t", &save);
 	

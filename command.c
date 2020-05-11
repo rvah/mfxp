@@ -2,9 +2,34 @@
 
 //general commands
 void cmd_help(char *line) {
-	printf("<-  -  - - ----\n");
-	printf("help coming soon\n");
-	printf("---- - -  -  ->\n");
+	printf("\nGeneral commands:\n\n");
+
+	printf("cd <dir>\t\t\topen local directory\n");
+	printf("close\t\t\t\tclose both sites in pair\n");
+	printf("exit/quit\t\t\tclose application\n");
+	printf("help\t\t\t\tshow this help(!)\n");
+	printf("log <num lines>\t\t\tshow last n lines from log\n");
+	printf("ls\t\t\t\tlist current local working directory\n");
+	printf("mkdir\t\t\t\tcreate local directory\n");
+	printf("open <site1,site2>\t\topen site pair\n");
+	printf("rm <dir/file>\t\t\tdelete local file or directory\n\n");
+
+	printf("Site specific commands:\n");
+	printf("- prefix command with either 'l' or 'r' to run on left or right site.\n");
+	printf("- example: lcd Test_Rls-BLAH/\n\n");
+
+	printf("cd <dir>\t\t\topen directory on site\n");
+	printf("close\t\t\t\tclose site connection\n");
+	printf("fxp <dir/file>\t\t\tfxp file or directory to the other site in the pair\n");
+	printf("get <dir/file>\t\t\tdownload file or directory\n");
+	printf("ls\t\t\t\tlist current working directory on site\n");
+	printf("mkdir <dir>\t\t\tcreate dir on site\n");
+	printf("nfo <file>\t\t\tview remote nfo/sfv/txt/diz\n");
+	printf("open <site name>\t\topen connection to site\n");
+	printf("put <dir/file>\t\t\tupload file or directory\n");
+	printf("quote <raw cmd>\t\t\tsend raw command string to site\n");
+	printf("rm <file/dir>\t\t\tdelete file or directory on site\n");
+	printf("site <cmd>\t\t\tsend SITE command\n\n");
 }
 
 char *get_arg(char *line, int i) {

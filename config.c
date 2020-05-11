@@ -142,6 +142,31 @@ static int ini_read_handler(void* user, const char* section, const char* name, c
 			str_trim(s_xdupe);
 			app_conf->enable_xdupe = strcmp(s_xdupe, "true") == 0;
 			free(s_xdupe);	
+		} else if(strcmp(name, "default_local_dir") == 0) {
+			char *d_val = strdup(value);
+			str_trim(d_val);
+
+			//expand ~
+			if(d_val[0] == '~') {
+				wordexp_t exp_result;
+				wordexp(d_val, &exp_result, 0);
+
+				free(d_val);
+				d_val = strdup(exp_result.we_wordv[0]);
+			}
+
+			if(chdir(d_val) != 0) {
+				free(d_val);
+				printf("failed to set default dir: %s\n", value);
+				return 0;
+			}
+
+			free(d_val);
+		} else if(strcmp(name, "show_dirlist_on_cwd") == 0) {
+			char *s_show = strdup(value);
+			str_trim(s_show);
+			app_conf->show_dirlist_on_cwd = strcmp(value, "true") == 0;
+			free(s_show);
 		}
 	} else if(strcmp(s_name, "ident") == 0) {
 		ident_set_setting(name, value);

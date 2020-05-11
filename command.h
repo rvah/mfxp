@@ -8,6 +8,8 @@
 #include "thread.h"
 #include "filesystem.h"
 
+void cmd_execute(uint32_t thread_id, uint32_t event, void *data);
+
 void cmd_help(char *line);
 void cmd_open(char *line, char which);
 void cmd_close(char *line, char which);

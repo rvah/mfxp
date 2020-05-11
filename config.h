@@ -24,6 +24,7 @@ struct site_config {
 struct config {
 	struct site_config *sites;
 	bool enable_xdupe;
+	bool show_dirlist_on_cwd;
 };
 
 struct config *config_get_conf();

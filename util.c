@@ -122,12 +122,12 @@ char *str_get_file(char *s) {
 	return r;
 }
 
-bool file_exists (char *filename) {
+bool file_exists(char *filename) {
 	struct stat buffer;   
 	return (stat(filename, &buffer) == 0);
 }
 
-char *path_append_file(char *path, char *file) {
+char *path_append_file(const char *path, const char *file) {
 	int p_len = strlen(path);
 	int f_len = strlen(file);
 	int new_len = p_len + f_len + 2;
@@ -142,7 +142,7 @@ char *path_append_file(char *path, char *file) {
 	return ret;
 }
 
-char *path_append_dir(char *path, char *dir) {
+char *path_append_dir(const char *path, const char *dir) {
 	char *t = path_append_file(path, dir);
 	int t_len = strlen(t);
 
