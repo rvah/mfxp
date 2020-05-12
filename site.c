@@ -89,6 +89,7 @@ struct site_info *site_init(char *name, char *address, char *port, char *usernam
 	site->xdupe_enabled = false;
 	site->xdupe_table = dict_create();
 	site->xdupe_empty = true;
+	site->cur_dirlist = NULL;
 
 	site_set_cwd(site, "/");
 

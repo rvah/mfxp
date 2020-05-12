@@ -96,29 +96,30 @@ void thread_site_handle_event(struct msg *m, struct site_info *s) {
 
 		struct file_item *fl = s->cur_dirlist;
 		log_ui(s->thread_id, LOG_T_I, TCOL_GREEN "[%s]:\n" TCOL_RESET, s->current_working_dir);
+
+		const char *color = __color_white;
 		while(fl != NULL) {
 
 			//TODO: clean up
-			char *f_size = parse_file_size(fl->size);
 			if(fl->skip) {
-				log_ui(s->thread_id, LOG_T_I, TCOL_RED "%5s %s\n" TCOL_RESET, f_size, fl->file_name);
+				color = colors_get_conf()->skip_file;
 			} else if(fl->hilight) {
-				log_ui(s->thread_id, LOG_T_I, TCOL_YELLOW "%5s %s\n" TCOL_RESET, f_size, fl->file_name);
+				color = colors_get_conf()->hilight_file;
 			} else {
 				switch(fl->file_type) {
 				case FILE_TYPE_FILE:
-					log_ui(s->thread_id, LOG_T_I, TCOL_PINK "%5s %s\n" TCOL_RESET, f_size, fl->file_name);
+					color = colors_get_conf()->file_type_file;
 					break;
 				case FILE_TYPE_DIR:
-					log_ui(s->thread_id, LOG_T_I, TCOL_GREEN "%5s %s/\n" TCOL_RESET, f_size, fl->file_name);
+					color = colors_get_conf()->file_type_dir;
 					break;
 				case FILE_TYPE_LINK:
-					log_ui(s->thread_id, LOG_T_I, TCOL_CYAN "%5s %s\n" TCOL_RESET, f_size, fl->file_name);
+					color = colors_get_conf()->file_type_symlink;
 					break;
 				}
 			}
 
-			free(f_size);
+			log_ui(s->thread_id, LOG_T_I, generate_ui_dirlist_item(color, fl));
 
 			fl = fl->next;
 		}

@@ -33,7 +33,41 @@ void dirlist_sort(struct file_item **list, bool prio_sort) {
 	}
 }
 
-struct file_item *find_local_file(char *path, char *filename) {
+void file_item_destroy(struct file_item *item) {
+	if(item == NULL) {
+		return;
+	}
+
+	struct file_item *prev;
+
+	while(item != NULL) {
+		prev = item;
+		item = item->next;
+		free(prev);
+	}
+}
+
+struct file_item *file_item_cpy(struct file_item * item) {
+	struct file_item *r_item = NULL;
+	struct file_item *first_item = NULL;
+
+	while(item != NULL) {
+		if(r_item == NULL) {
+			r_item = malloc(sizeof(struct file_item));
+			memcpy(r_item, item, sizeof(struct file_item));
+			first_item = r_item;
+		} else {
+			r_item->next = malloc(sizeof(struct file_item));
+			memcpy(r_item->next, item, sizeof(struct file_item));
+			r_item = r_item->next;
+		}
+		item = item->next;
+	}
+
+	return first_item;
+}
+
+struct file_item *find_local_file(const char *path, const char *filename) {
 	DIR *dir;
 	struct dirent *ent;
 	struct file_item *item = NULL;
@@ -84,7 +118,7 @@ struct file_item *local_ls(char *path, bool prio_sort) {
 				item->skip = skiplist_skip(item->file_name);
 				item->priority = priolist_get_priority(item->file_name);
 				item->hilight = hilight_file(item->file_name);
-
+				item->date[0] = '\0';
 				item->next = NULL;
 
 				if(list == NULL) {

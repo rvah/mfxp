@@ -23,6 +23,7 @@ FILES = main.c \
 		dictionary.c \
 		transfer_result.c \
 		stats.c \
+		colors.c \
 		libs/inih/ini.c
 
 LIBS = -lssl -lcrypto -lbsd -lreadline -lpthread

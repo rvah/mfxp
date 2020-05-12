@@ -1,2 +1,0 @@
-# rfxp
-specialized ftp client

@@ -170,6 +170,8 @@ static int ini_read_handler(void* user, const char* section, const char* name, c
 		}
 	} else if(strcmp(s_name, "ident") == 0) {
 		ident_set_setting(name, value);
+	} else if(strcmp(s_name, "colors") == 0) {
+		colors_set_setting(name, value);
 	}
 
 	return 1;

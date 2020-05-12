@@ -150,7 +150,22 @@ bool control_send(struct site_info *site, char *data) {
 }
 
 int32_t control_recv(struct site_info *site) {
-	return __control_recv(site, false);
+	int32_t code = __control_recv(site, false);
+
+	//connection timed out, kill socket
+	if(code == 421) {
+		cmd_execute(site->thread_id, EV_SITE_CLOSE, NULL);
+
+		 struct msg *m = malloc(sizeof(struct msg));
+		 m->to_id = THREAD_ID_UI;
+		 m->from_id = site->thread_id;
+		 m->event = EV_UI_RM_SITE;
+		 msg_send(m);
+
+		log_ui(site->thread_id, LOG_T_E, "%s: connection timed out.\n", site->name);
+	}
+
+	return code;
 }
 
 bool ftp_sscn(struct site_info *site, bool set_on) {
@@ -224,8 +239,9 @@ bool ftp_ls(struct site_info *site) {
 	}
 
 	struct file_item *fl = parse_list(site->last_recv);
-
+	file_item_destroy(site->cur_dirlist);
 	site->cur_dirlist = fl;
+
 	return true;
 }
 
@@ -512,7 +528,7 @@ bool ftp_data_enable_tls(struct site_info *site) {
 	return true;
 }
 
-struct transfer_result *ftp_get(struct site_info *site, char *filename, char *local_dir, char *remote_dir) {
+struct transfer_result *ftp_get(struct site_info *site, const char *filename, const char *local_dir, const char *remote_dir) {
 	struct file_item *file = find_file(site->cur_dirlist, filename);
 	struct timeval time_start;
 	struct timeval time_end;
@@ -649,7 +665,7 @@ struct transfer_result *ftp_get(struct site_info *site, char *filename, char *lo
 	}
 }
 
-struct transfer_result *ftp_put(struct site_info *site, char *filename, char *local_dir, char *remote_dir) {
+struct transfer_result *ftp_put(struct site_info *site, const char *filename, const char *local_dir, const char *remote_dir) {
 	struct file_item *local_file = find_local_file(local_dir, filename);
 	struct timeval time_start;
 	struct timeval time_end;
@@ -831,23 +847,28 @@ bool ftp_mkd(struct site_info *site, char *dirname) {
 	return control_recv(site) == 257;
 }
 
-struct transfer_result *__ftp_get_recursive(struct site_info *site, char *dirname, char *local_dir, char *remote_dir) {
-	struct file_item *file = find_file(site->cur_dirlist, dirname);
+struct transfer_result *__ftp_get_recursive(struct site_info *site, const char *dirname, const char *local_dir, const char *remote_dir) {
+	//make copy of dirname, local_dir, remote_dir to prevent cwd from manipulating ptr
+	char *_dirname = strdup(dirname);
+	char *_local_dir = strdup(local_dir);
+	char *_remote_dir = strdup(remote_dir);
+
+	struct file_item *file = find_file(site->cur_dirlist, _dirname);
 
 	if(file == NULL) {
-		return transfer_result_create(false, strdup(dirname), 0, 0.0f, false, FILE_TYPE_DIR);
+		return transfer_result_create(false, strdup(_dirname), 0, 0.0f, false, FILE_TYPE_DIR);
 	}
 
 	if(file->skip) {
-		log_ui(site->thread_id, LOG_T_W, "%s: skip\n", dirname);
-		return transfer_result_create(true, strdup(dirname), 0, 0.0f, true, FILE_TYPE_DIR);
+		log_ui(site->thread_id, LOG_T_W, "%s: skip\n", _dirname);
+		return transfer_result_create(true, strdup(_dirname), 0, 0.0f, true, FILE_TYPE_DIR);
 	}
 
-	char *new_lpath = path_append_dir(local_dir, dirname);
-	char *new_rpath = path_append_dir(remote_dir, dirname);
+	char *new_lpath = path_append_dir(_local_dir, _dirname);
+	char *new_rpath = path_append_dir(_remote_dir, _dirname);
 
 	if(!ftp_cwd(site, new_rpath)) {
-		return transfer_result_create(false, strdup(dirname), 0, 0.0f, false, FILE_TYPE_DIR);
+		return transfer_result_create(false, strdup(_dirname), 0, 0.0f, false, FILE_TYPE_DIR);
 	}
 
 	if(!file_exists(new_lpath)) {
@@ -858,29 +879,29 @@ struct transfer_result *__ftp_get_recursive(struct site_info *site, char *dirnam
 			//ftp_ls(site);
 			free(new_lpath);
 			free(new_rpath);
-			return transfer_result_create(false, strdup(dirname), 0, 0.0f, false, FILE_TYPE_DIR);
+			return transfer_result_create(false, strdup(_dirname), 0, 0.0f, false, FILE_TYPE_DIR);
 		}
 	}
 
 	if(!ftp_ls(site)) {
-		log_ui(site->thread_id, LOG_T_E, "%s: unable to get dirlist!\n", dirname);
+		log_ui(site->thread_id, LOG_T_E, "%s: unable to get dirlist!\n", _dirname);
 		free(new_lpath);
 		free(new_rpath);
 		return transfer_result_create(false, strdup(dirname), 0, 0.0f, false, FILE_TYPE_DIR);
 	}
 
 	if(site->cur_dirlist == NULL) {
-		log_ui(site->thread_id, LOG_T_W, "%s: empty dir\n", dirname);
+		log_ui(site->thread_id, LOG_T_W, "%s: empty dir\n", _dirname);
 		//ftp_cwd(site, ".."); // go back
 		//ftp_ls(site);
 		free(new_lpath);
 		free(new_rpath);
-		return transfer_result_create(true, strdup(dirname), 0, 0.0f, true, FILE_TYPE_DIR);
+		return transfer_result_create(true, strdup(_dirname), 0, 0.0f, true, FILE_TYPE_DIR);
 	}
 
 	struct file_item *fl = site->cur_dirlist;
 
-	struct transfer_result *ret = transfer_result_create(true, strdup(dirname), 0, 0.0f, false, FILE_TYPE_DIR);
+	struct transfer_result *ret = transfer_result_create(true, strdup(_dirname), 0, 0.0f, false, FILE_TYPE_DIR);
 	struct transfer_result *rp = ret;
 
 	//count files in list
@@ -894,7 +915,9 @@ struct transfer_result *__ftp_get_recursive(struct site_info *site, char *dirnam
 		fl = fl->next;
 	}
 
-	fl = site->cur_dirlist;
+	//make a copy, to prevent subsequent cwd from freeing the list
+	struct file_item *first_file = file_item_cpy(site->cur_dirlist);
+	fl = first_file;
 
 	while(fl != NULL) {
 		//move to end of ret list
@@ -919,19 +942,37 @@ struct transfer_result *__ftp_get_recursive(struct site_info *site, char *dirnam
 		} else if(fl->file_type == FILE_TYPE_DIR) {
 			log_ui(site->thread_id, LOG_T_I, "%s: downloading dir..\n", fl->file_name);
 
-			rp->next = __ftp_get_recursive(site, fl->file_name, new_lpath, new_rpath);			
+			rp->next = __ftp_get_recursive(site, fl->file_name, new_lpath, new_rpath);
+			
+			//restore current path
+			if(!ftp_cwd(site, new_rpath)) {
+				//mark dir as failed
+				ret->success = false;
+				break;
+			}
+
+			if(!ftp_ls(site)) {
+				ret->success = false;
+				break;
+			}
 		}
 
 		fl = fl->next;
 	}
+
+	file_item_destroy(first_file);
 	
 	free(new_lpath);
 	free(new_rpath);
 
+	free(_local_dir);
+	free(_remote_dir);
+	free(_dirname);
+
 	return ret;
 }
 
-struct transfer_result *ftp_get_recursive(struct site_info *site, char *dirname, char *local_dir, char *remote_dir) {
+struct transfer_result *ftp_get_recursive(struct site_info *site, const char *dirname, const char *local_dir, const char *remote_dir) {
 	struct timeval time_start;
 	struct timeval time_end;
 
@@ -952,57 +993,62 @@ struct transfer_result *ftp_get_recursive(struct site_info *site, char *dirname,
 	return ret; 
 }
 
-struct transfer_result *__ftp_put_recursive(struct site_info *site, char *dirname, char *local_dir, char *remote_dir) {
-	struct file_item *local_file = find_local_file(local_dir, dirname);
+struct transfer_result *__ftp_put_recursive(struct site_info *site, const char *dirname, const char *local_dir, const char *remote_dir) {
+	//copy args to prevent outside changes during cwd etc if ptr from dirlist etc
+	char *_dirname = strdup(dirname);
+	char *_local_dir = strdup(local_dir);
+	char *_remote_dir = strdup(remote_dir);
+
+	struct file_item *local_file = find_local_file(_local_dir, _dirname);
 
 	if(local_file == NULL) {
-		return transfer_result_create(false, strdup(dirname), 0, 0.0f, false, FILE_TYPE_DIR);
+		return transfer_result_create(false, strdup(_dirname), 0, 0.0f, false, FILE_TYPE_DIR);
 	}
 
 	if(local_file->skip) {
-		log_ui(site->thread_id, LOG_T_W, "%s: skip\n", dirname);
+		log_ui(site->thread_id, LOG_T_W, "%s: skip\n", _dirname);
 		free(local_file);
-		return transfer_result_create(true, strdup(dirname), 0, 0.0f, true, FILE_TYPE_DIR);
+		return transfer_result_create(true, strdup(_dirname), 0, 0.0f, true, FILE_TYPE_DIR);
 	}
 
 	free(local_file);
 
-	char *new_lpath = path_append_dir(local_dir, dirname);
-	char *new_rpath = path_append_dir(remote_dir, dirname);
-	struct file_item *rfile = find_file(site->cur_dirlist, dirname);
+	char *new_lpath = path_append_dir(_local_dir, _dirname);
+	char *new_rpath = path_append_dir(_remote_dir, _dirname);
+	struct file_item *rfile = find_file(site->cur_dirlist, _dirname);
 
 	if(rfile == NULL) {
 		if(!ftp_mkd(site, new_rpath)) {
-			log_ui(site->thread_id, LOG_T_E, "%s: mkdir failed!\n", dirname);
+			log_ui(site->thread_id, LOG_T_E, "%s: mkdir failed!\n", _dirname);
 		}
 	} else if(rfile->file_type != FILE_TYPE_DIR) {
-		log_ui(site->thread_id, LOG_T_E, "%s: remote file not a directory!\n", dirname);
+		log_ui(site->thread_id, LOG_T_E, "%s: remote file not a directory!\n", _dirname);
 		free(new_lpath);
 		free(new_rpath);
-		return transfer_result_create(false, strdup(dirname), 0, 0.0f, false, FILE_TYPE_DIR);
+		return transfer_result_create(false, strdup(_dirname), 0, 0.0f, false, FILE_TYPE_DIR);
 	}
 
 	if(!ftp_cwd(site, new_rpath)) {
 		free(new_lpath);
 		free(new_rpath);
-		return transfer_result_create(false, strdup(dirname), 0, 0.0f, false, FILE_TYPE_DIR);
+		return transfer_result_create(false, strdup(_dirname), 0, 0.0f, false, FILE_TYPE_DIR);
 	}
 
 	if(!ftp_ls(site)) {
 		free(new_lpath);
 		free(new_rpath);
-		return transfer_result_create(false, strdup(dirname), 0, 0.0f, false, FILE_TYPE_DIR);
+		return transfer_result_create(false, strdup(_dirname), 0, 0.0f, false, FILE_TYPE_DIR);
 	}
 
 	struct file_item *l_list = local_ls(new_lpath, true);
 	struct file_item *lp = l_list;
 
 	if(lp == NULL) {
-		log_ui(site->thread_id, LOG_T_W, "%s: empty dir\n", dirname);
-		return transfer_result_create(true, strdup(dirname), 0, 0.0f, true, FILE_TYPE_DIR);
+		log_ui(site->thread_id, LOG_T_W, "%s: empty dir\n", _dirname);
+		return transfer_result_create(true, strdup(_dirname), 0, 0.0f, true, FILE_TYPE_DIR);
 	}
 
-	struct transfer_result *ret = transfer_result_create(true, strdup(dirname), 0, 0.0f, false, FILE_TYPE_DIR);
+	struct transfer_result *ret = transfer_result_create(true, strdup(_dirname), 0, 0.0f, false, FILE_TYPE_DIR);
 	struct transfer_result *rp = ret;
 
 	//count files in list
@@ -1040,6 +1086,19 @@ struct transfer_result *__ftp_put_recursive(struct site_info *site, char *dirnam
 			log_ui(site->thread_id, LOG_T_I, "%s: uploading dir..\n", lp->file_name);
 
 			rp->next = __ftp_put_recursive(site, lp->file_name, new_lpath, new_rpath);
+
+			//restore current path
+			if(!ftp_cwd(site, new_rpath)) {
+				//mark dir as failed
+				ret->success = false;
+				break;
+			}
+
+			if(!ftp_ls(site)) {
+				ret->success = false;
+				break;
+			}
+
 		}
 
 		lp = lp->next;
@@ -1047,6 +1106,10 @@ struct transfer_result *__ftp_put_recursive(struct site_info *site, char *dirnam
 
 	free(new_lpath);
 	free(new_rpath);
+
+	free(_local_dir);
+	free(_remote_dir);
+	free(_dirname);
 
 	//free dir data
 	while(l_list != NULL) {
@@ -1058,7 +1121,7 @@ struct transfer_result *__ftp_put_recursive(struct site_info *site, char *dirnam
 	return ret;
 }
 
-struct transfer_result *ftp_put_recursive(struct site_info *site, char *dirname, char *local_dir, char *remote_dir) {
+struct transfer_result *ftp_put_recursive(struct site_info *site, const char *dirname, const char *local_dir, const char *remote_dir) {
 	struct timeval time_start;
 	struct timeval time_end;
 
@@ -1079,7 +1142,7 @@ struct transfer_result *ftp_put_recursive(struct site_info *site, char *dirname,
 	return ret;
 }
 
-struct transfer_result *fxp(struct site_info *src, struct site_info *dst, char *filename, char *src_dir, char *dst_dir) {
+struct transfer_result *fxp(struct site_info *src, struct site_info *dst, const char *filename, const char *src_dir, const char *dst_dir) {
 	struct file_item *file = find_file(src->cur_dirlist, filename);
 	struct timeval time_start;
 	struct timeval time_end;
@@ -1189,56 +1252,61 @@ struct transfer_result *fxp(struct site_info *src, struct site_info *dst, char *
 }
 
 struct transfer_result *__fxp_recursive(struct site_info *src, struct site_info *dst, const char *dirname, const char *src_dir, const char *dst_dir) {
-	struct file_item *file = find_file(src->cur_dirlist, dirname);
+	//copy args for safety
+	char *_dirname = strdup(dirname);
+	char *_src_dir = strdup(src_dir);
+	char *_dst_dir = strdup(dst_dir);
+
+	struct file_item *file = find_file(src->cur_dirlist, _dirname);
 
 	if(file == NULL) {
-		return transfer_result_create(false, strdup(dirname), 0, 0.0f, false, FILE_TYPE_DIR);
+		return transfer_result_create(false, strdup(_dirname), 0, 0.0f, false, FILE_TYPE_DIR);
 	}
 
 	if(file->skip) {
-		log_ui(src->thread_id, LOG_T_W, "%s: skip\n", dirname);
-		return transfer_result_create(true, strdup(dirname), 0, 0.0f, true, FILE_TYPE_DIR);
+		log_ui(src->thread_id, LOG_T_W, "%s: skip\n", _dirname);
+		return transfer_result_create(true, strdup(_dirname), 0, 0.0f, true, FILE_TYPE_DIR);
 	}
 
-	char *new_spath = path_append_dir(src_dir, dirname);
-	char *new_dpath = path_append_dir(dst_dir, dirname);
+	char *new_spath = path_append_dir(_src_dir, _dirname);
+	char *new_dpath = path_append_dir(_dst_dir, _dirname);
 
-	struct file_item *rfile = find_file(dst->cur_dirlist, dirname);
+	struct file_item *rfile = find_file(dst->cur_dirlist, _dirname);
 
 	if(rfile == NULL) {
 		if(!ftp_mkd(dst, new_dpath)) {
-			log_ui(dst->thread_id, LOG_T_E, "%s: mkdir failed!\n", dirname);
+			log_ui(dst->thread_id, LOG_T_E, "%s: mkdir failed!\n", _dirname);
 			free(new_spath);
 			free(new_dpath);
-			return transfer_result_create(false, strdup(dirname), 0, 0.0f, false, FILE_TYPE_DIR);
+			return transfer_result_create(false, strdup(_dirname), 0, 0.0f, false, FILE_TYPE_DIR);
 		}
 	} else if(rfile->file_type != FILE_TYPE_DIR) {
-		log_ui(dst->thread_id, LOG_T_E, "%s: remote file not a directory!\n", dirname);
+		log_ui(dst->thread_id, LOG_T_E, "%s: remote file not a directory!\n", _dirname);
 		free(new_spath);
 		free(new_dpath);
-		return transfer_result_create(false, strdup(dirname), 0, 0.0f, false, FILE_TYPE_DIR);
+		return transfer_result_create(false, strdup(_dirname), 0, 0.0f, false, FILE_TYPE_DIR);
 	}
 
 	//cwd and list src
-	if(!ftp_cwd(src, dirname)) {
+	if(!ftp_cwd(src, _dirname)) {
 		free(new_spath);
 		free(new_dpath);
-		return transfer_result_create(false, strdup(dirname), 0, 0.0f, false, FILE_TYPE_DIR);
+		return transfer_result_create(false, strdup(_dirname), 0, 0.0f, false, FILE_TYPE_DIR);
 	}
 
 	if(!ftp_ls(src)) {
 		//ftp_cwd_up(src);
 		free(new_spath);
 		free(new_dpath);
-		return transfer_result_create(false, strdup(dirname), 0, 0.0f, false, FILE_TYPE_DIR);
+		return transfer_result_create(false, strdup(_dirname), 0, 0.0f, false, FILE_TYPE_DIR);
 	}
 
 	//cwd and list dst
-	if(!ftp_cwd(dst, dirname)) {
+	if(!ftp_cwd(dst, _dirname)) {
 		//ftp_cwd_up(src);
 		free(new_spath);
 		free(new_dpath);
-		return transfer_result_create(false, strdup(dirname), 0, 0.0f, false, FILE_TYPE_DIR);
+		return transfer_result_create(false, strdup(_dirname), 0, 0.0f, false, FILE_TYPE_DIR);
 	}
 
 	if(!ftp_ls(dst)) {
@@ -1246,19 +1314,19 @@ struct transfer_result *__fxp_recursive(struct site_info *src, struct site_info 
 		//ftp_cwd_up(dst);
 		free(new_spath);
 		free(new_dpath);
-		return transfer_result_create(false, strdup(dirname), 0, 0.0f, false, FILE_TYPE_DIR);
+		return transfer_result_create(false, strdup(_dirname), 0, 0.0f, false, FILE_TYPE_DIR);
 	}
 
 	struct file_item *fl = src->cur_dirlist;
 
 	if(fl == NULL) {
-		log_ui(src->thread_id, LOG_T_W, "%s: empty dir\n", dirname);
+		log_ui(src->thread_id, LOG_T_W, "%s: empty dir\n", _dirname);
 		free(new_spath);
 		free(new_dpath);
-		return transfer_result_create(true, strdup(dirname), 0, 0.0f, true, FILE_TYPE_DIR);
+		return transfer_result_create(true, strdup(_dirname), 0, 0.0f, true, FILE_TYPE_DIR);
 	}
 
-	struct transfer_result *ret = transfer_result_create(true, strdup(dirname), 0, 0.0f, false, FILE_TYPE_DIR);
+	struct transfer_result *ret = transfer_result_create(true, strdup(_dirname), 0, 0.0f, false, FILE_TYPE_DIR);
 	 struct transfer_result *rp = ret;	
 
 	//count files in list
@@ -1272,7 +1340,9 @@ struct transfer_result *__fxp_recursive(struct site_info *src, struct site_info 
 		fl = fl->next;
 	}
 
-	fl = src->cur_dirlist;
+	//make a copy to prevent cwd clear
+	struct file_item *first_file = file_item_cpy(src->cur_dirlist);
+	fl = first_file;
 
 	while(fl != NULL) {
 		//move to end of ret list
@@ -1295,17 +1365,46 @@ struct transfer_result *__fxp_recursive(struct site_info *src, struct site_info 
 			log_ui(src->thread_id, LOG_T_I, "%s: fxp'ing dir..\n", fl->file_name);
 
 			rp->next = __fxp_recursive(src, dst, fl->file_name, new_spath, new_dpath);
+
+			//restore current path
+			if(!ftp_cwd(src, new_spath)) {
+				//mark dir as failed
+				ret->success = false;
+				break;
+			}
+
+			if(!ftp_ls(src)) {
+				ret->success = false;
+				break;
+			}
+
+			//restore current path
+			if(!ftp_cwd(dst, new_dpath)) {
+				//mark dir as failed
+				ret->success = false;
+				break;
+			}
+
+			if(!ftp_ls(dst)) {
+				ret->success = false;
+				break;
+			}
 		}
 
 		fl = fl->next;
 	}
 
+	file_item_destroy(first_file);
+
 	free(new_spath);
 	free(new_dpath);
+	free(_dirname);
+	free(_src_dir);
+	free(_dst_dir);
 	return ret;
 }
 
-struct transfer_result *fxp_recursive(struct site_info *src, struct site_info *dst, char *dirname, char *src_dir, char *dst_dir) {
+struct transfer_result *fxp_recursive(struct site_info *src, struct site_info *dst, const char *dirname, const char *src_dir, const char *dst_dir) {
 	struct timeval time_start;
 	struct timeval time_end;
 

@@ -49,3 +49,22 @@ char *generate_ui_prompt(char indicator_l, char indicator_r) {
 
 	return out;
 }
+
+char *generate_ui_dirlist_item(const char *color, struct file_item *file) {
+	char *fmt_remote = "%s%-12s %5s %s%s\n";
+	char *fmt_local = "%s%s%5s %s%s\n";
+
+	char *fmt = fmt_remote;
+
+	if(file->date[0] == '\0') {
+		fmt = fmt_local;
+	}
+
+	char *f_size = parse_file_size(file->size);
+
+	uint32_t s_len = snprintf(NULL, 0, fmt, color, file->date, f_size, file->file_name, TCOL_RESET)+1;
+	char *out = malloc(s_len);
+
+	snprintf(out, s_len, fmt, color, file->date, f_size, file->file_name, TCOL_RESET);
+	return out;
+}

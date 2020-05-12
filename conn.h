@@ -17,6 +17,7 @@
 #include "transfer_result.h"
 #include "stats.h"
 #include "transfer_result.h"
+#include "command.h"
 
 #define CONTROL_BUF_SZ 1024 // max number of bytes we can get at once 
 #define CONTROL_LINE_SZ 1024
@@ -35,12 +36,12 @@ int32_t control_recv(struct site_info *site);
 bool ftp_connect(struct site_info *site);
 void ftp_disconnect(struct site_info *site);
 bool ftp_retr(struct site_info *site, char *filename);
-struct transfer_result *ftp_get(struct site_info *site, char *filename, char *local_dir, char *remote_dir);
-struct transfer_result *ftp_put(struct site_info *site, char *filename, char *local_dir, char *remote_dir);
+struct transfer_result *ftp_get(struct site_info *site, const char *filename, const char *local_dir, const char *remote_dir);
+struct transfer_result *ftp_put(struct site_info *site, const char *filename, const char *local_dir, const char *remote_dir);
 bool ftp_cwd(struct site_info *site, const char *dirname);
 bool ftp_mkd(struct site_info *site, char *dirname);
 bool ftp_ls(struct site_info *site);
-struct transfer_result *ftp_get_recursive(struct site_info *site, char *dirname, char *local_dir, char *remote_dir);
-struct transfer_result *ftp_put_recursive(struct site_info *site, char *dirname, char *local_dir, char *remote_dir);
-struct transfer_result *fxp(struct site_info *src, struct site_info *dst, char *filename, char *src_dir, char *dst_dir);
-struct transfer_result *fxp_recursive(struct site_info *src, struct site_info *dst, char *dirname, char *src_dir, char *dst_dir);
+struct transfer_result *ftp_get_recursive(struct site_info *site, const char *dirname, const char *local_dir, const char *remote_dir);
+struct transfer_result *ftp_put_recursive(struct site_info *site, const char *dirname, const char *local_dir, const char *remote_dir);
+struct transfer_result *fxp(struct site_info *src, struct site_info *dst, const char *filename, const char *src_dir, const char *dst_dir);
+struct transfer_result *fxp_recursive(struct site_info *src, struct site_info *dst, const char *dirname, const char *src_dir, const char *dst_dir);

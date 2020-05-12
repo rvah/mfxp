@@ -5,6 +5,7 @@
 #include "priolist.h"
 #include "hilight.h"
 #include "ident.h"
+#include "colors.h"
 
 void config_cleanup();
 struct site_config *get_site_config_by_name(char *name);
