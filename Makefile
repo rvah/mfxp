@@ -23,7 +23,7 @@ $(OBJ_DIR):
 	mkdir $@
 
 tags:
-	-ctags -R
+	-./postbuild.sh
 
 clean:
 	$(RM) $(OBJ) $(EXE)
