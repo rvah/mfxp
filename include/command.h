@@ -8,6 +8,7 @@
 #include "thread.h"
 #include "filesystem.h"
 #include "queue.h"
+#include "sm.h"
 
 void cmd_execute(uint32_t thread_id, uint32_t event, void *data);
 

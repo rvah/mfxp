@@ -172,7 +172,7 @@ struct site_config *get_site_config(uint32_t id) {
 	return NULL;
 }
 
-struct site_config *get_site_config_by_name(char *name) {
+struct site_config *get_site_config_by_name(const char *name) {
 	struct site_config *p = app_conf->sites;
 
 	while(p != NULL) {

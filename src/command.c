@@ -1,4 +1,5 @@
 #include "command.h"
+#include "sm.h"
 
 /*
  * ----------------
@@ -80,8 +81,12 @@ void cmd_help(char *line) {
 	printf("sm add <name> <host:port> <user> <pass>\tadd site\n");
 	printf("sm rm <site>\t\t\t\tremove site\n");
 	printf("sm ls\t\t\t\t\tlist all sites\n");
-	printf("sm ls <site>\t\t\t\tshow site details\n\n");
-
+	printf("sm ls <site>\t\t\t\tshow site details\n");
+	printf("sm edit <name> <attr> <value>\t\tedit site, valid attributes:\n");
+	printf("\t- name: site name\n");
+	printf("\t- host: hostname and port, format: <host:port>\n");
+	printf("\t- user: username\n");
+	printf("\t- pass: password\n\n");
 	printf("Site specific commands:\n");
 	printf("- prefix command with either 'l' or 'r' to run on left or right site.\n");
 	printf("- example: lcd Test_Rls-BLAH/\n\n");
@@ -406,7 +411,8 @@ void cmd_nfo(char *line, char which) {
 		return;
 	}
 
-	if( (strcmp(pos+1, "nfo") != 0) && (strcmp(pos+1, "sfv") != 0) && (strcmp(pos+1, "diz") != 0) && (strcmp(pos+1, "txt") != 0) ) {
+	if( (strcmp(pos+1, "nfo") != 0) && (strcmp(pos+1, "sfv") != 0)
+			&& (strcmp(pos+1, "diz") != 0) && (strcmp(pos+1, "txt") != 0) ) {
 		printf("bad filetype, supported filetypes: nfo, sfv, diz, txt\n");
 		return;
 	}
@@ -499,13 +505,16 @@ void cmd_sort(char *line, char type) {
 
 	switch(type) {
 	case 'n':
-		new_sort = (cur_sort == SORT_TYPE_NAME_ASC) ? SORT_TYPE_NAME_DESC : SORT_TYPE_NAME_ASC;
+		new_sort = (cur_sort == SORT_TYPE_NAME_ASC) ? SORT_TYPE_NAME_DESC
+			: SORT_TYPE_NAME_ASC;
 		break;
 	case 's':
-		new_sort = (cur_sort == SORT_TYPE_SIZE_ASC) ? SORT_TYPE_SIZE_DESC : SORT_TYPE_SIZE_ASC;
+		new_sort = (cur_sort == SORT_TYPE_SIZE_ASC) ? SORT_TYPE_SIZE_DESC
+			: SORT_TYPE_SIZE_ASC;
 		break;
 	case 't':
-		new_sort = (cur_sort == SORT_TYPE_TIME_ASC) ? SORT_TYPE_TIME_DESC : SORT_TYPE_TIME_ASC;
+		new_sort = (cur_sort == SORT_TYPE_TIME_ASC) ? SORT_TYPE_TIME_DESC
+			: SORT_TYPE_TIME_ASC;
 		break;
 	}
 
@@ -546,7 +555,8 @@ void cmd_sm(char *line) {
 		char *port;
 		char *save;
 
-		if((name == NULL) || (hport == NULL) || (user == NULL) || (pass == NULL)) {
+		if((name == NULL) || (hport == NULL) || (user == NULL)
+				|| (pass == NULL)) {
 			printf("bad args, please see help\n");
 			return;
 		}
@@ -556,115 +566,33 @@ void cmd_sm(char *line) {
 			return;
 		}
 
-		if(get_site_config_by_name(name) != NULL) {
-			printf("site with name '%s' already exists.\n", name);
-			return;
-		}
-
 		host = strtok_r(hport, ":", &save);
 		port = strtok_r(NULL, ":", &save);
 
-		struct site_config *new_site = malloc(sizeof(struct site_config));
-
-		new_site->id = 0;
-
-		//assign new id
-		struct site_config *all = config_get_conf()->sites;
-
-		while(all != NULL) {
-			if(all->id >= new_site->id) {
-				new_site->id = all->id+1;
-			}
-			all = all->next;
-		}
-
-		strlcpy(new_site->name, name, 255);
-		strlcpy(new_site->pass, pass, 255);
-		strlcpy(new_site->user, user, 255);
-		strlcpy(new_site->host, host, 255);
-		strlcpy(new_site->port, port, 6);
-
-		new_site->tls = true;
-		new_site->next = NULL;
-
-		add_site_config(new_site);
-
-		printf("added site '%s'\n", new_site->name);
-
-		//commit changes to disk
-		if(!write_site_config_file(config_get_conf()->sites, "noob")) {
-			printf("Error writing sitedb to disk!\n");
-		}
+		sm_add_site(name, user, pass, host, port);
 	} else if(strcmp(cmd, "rm") == 0) {
 		which_site = get_arg(line, 2);
 
-		if((which_site == NULL) || (get_site_config_by_name(which_site) == NULL)) {
-			printf("could not find any site called '%s'\n", which_site);
-			return;
-		}
-
-		struct site_config *all = config_get_conf()->sites;
-		struct site_config *prev = NULL;
-
-		while(all != NULL) {
-			if(strcasecmp(all->name, which_site) == 0) {
-				if(prev == NULL) {
-					config_get_conf()->sites = all->next;
-				} else {
-					prev->next = all->next;
-				}
-
-				printf("deleted site '%s'\n", all->name);
-
-				free(all);
-				break;
-			}
-
-			prev = all;
-			all = all->next;
-		}
-
-		//commit changes to disk
-		if(!write_site_config_file(config_get_conf()->sites, "noob")) {
-			printf("Error writing sitedb to disk!\n");
-		}
+		sm_remove_site(which_site);
 	} else if(strcmp(cmd, "ls") == 0) {
-		struct site_config *s = config_get_conf()->sites;
 		which_site = get_arg(line, 2);
 
 		if(which_site == NULL) {
-			if(s == NULL) {
-				printf("no sites added.\n");
-				return;
-			}
-
-			printf("Added sites:\n");
-
-			while(s != NULL) {
-				printf("%s", s->name);
-
-				s = s->next;
-
-				if(s != NULL) {
-					printf(", ");
-				}
-			}
-
-			printf("\n");
+			sm_list_all();
 		} else {
-			struct site_config *site = get_site_config_by_name(which_site);
-
-			if(site == NULL) {
-				printf("could not find any site called '%s'\n", which_site);
-			} else {
-				printf("ID: %d\n", site->id);
-				printf("name: %s\n", site->name);
-				printf("host: %s\n", site->host);
-				printf("port: %s\n", site->port);
-				printf("user: %s\n", site->user);
-				printf("pass: <hidden>\n");
-			}
+			sm_list(which_site);
 		}
+	} else if(strcmp(cmd, "edit") == 0) {
+		char *name = get_arg(line, 2);
+		char *setting = get_arg(line, 3);
+		char *val = get_arg(line, 4);
+
+		if( (name == NULL) || (setting == NULL) || (val == NULL) ) {
+			printf("bad args, please see help\n");
+			return;
+		}
+
+		sm_edit(name, setting, val);
 	} else {
 		printf("bad sm command, please see help\n");
 		return;
