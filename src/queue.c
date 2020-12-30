@@ -11,44 +11,15 @@ uint32_t __id = 0;
  *
  * ----------------
  */
-uint32_t gen_queue_id() {
+static uint32_t gen_queue_id() {
 	return __id++;
 }
 
-void queue_remove(uint32_t id) {
-	struct queue_item *p = __transfer_queue;
-	struct queue_item *prev = NULL;
-
-	while(p != NULL) {
-		if(p->id == id) {
-			if(prev == NULL) {
-				if(p->next != NULL) {
-					__transfer_queue = p->next;
-				} else {
-					__transfer_queue = NULL;
-				}
-			} else {
-				prev->next = p->next;
-			}
-
-			free(p);
-			log_ui(THREAD_ID_UI, LOG_T_I,
-				"%d: item was removed from queue!\n",id);
-			return;
-		}
-
-		prev = p;
-		p = p->next;
-	}
-
-	log_ui(THREAD_ID_UI, LOG_T_E,"%d: ID does not exist in queue!\n", id);
-}
-
-struct queue_item *first_item() {
+static struct queue_item *first_item() {
 	return __transfer_queue;
 }
 
-struct queue_item *last_item() {
+static struct queue_item *last_item() {
 	struct queue_item *p = __transfer_queue;
 
 	if(p == NULL) {
@@ -62,7 +33,7 @@ struct queue_item *last_item() {
 	return p;
 }
 
-char *item_info_string(struct queue_item *item) {
+static char *item_info_string(struct queue_item *item) {
 	char *src = NULL;
 	char *dst = NULL;
 	char sl[] = "LOCAL";
@@ -96,7 +67,7 @@ char *item_info_string(struct queue_item *item) {
 	return r;
 }
 
-void add_item(uint32_t type, struct site_info *site_src,
+static void add_item(uint32_t type, struct site_info *site_src,
 		struct site_info *site_dst, char *path_src,
 		char *path_dst, char *filename, bool is_dir) {
 	struct queue_item *item = malloc(sizeof(struct queue_item));
@@ -131,6 +102,35 @@ void add_item(uint32_t type, struct site_info *site_src,
  *
  * ----------------
  */
+
+void queue_remove(uint32_t id) {
+	struct queue_item *p = __transfer_queue;
+	struct queue_item *prev = NULL;
+
+	while(p != NULL) {
+		if(p->id == id) {
+			if(prev == NULL) {
+				if(p->next != NULL) {
+					__transfer_queue = p->next;
+				} else {
+					__transfer_queue = NULL;
+				}
+			} else {
+				prev->next = p->next;
+			}
+
+			free(p);
+			log_ui(THREAD_ID_UI, LOG_T_I,
+				"%d: item was removed from queue!\n",id);
+			return;
+		}
+
+		prev = p;
+		p = p->next;
+	}
+
+	log_ui(THREAD_ID_UI, LOG_T_E,"%d: ID does not exist in queue!\n", id);
+}
 
 void queue_print() {
 	struct queue_item *p = first_item();

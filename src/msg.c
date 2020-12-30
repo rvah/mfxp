@@ -12,7 +12,7 @@ pthread_cond_t msg_cond;
  * ----------------
  */
 
-void __msg_send(struct msg *msg) {
+static void __msg_send(struct msg *msg) {
 	if(msg == NULL) {
 		return;
 	}
@@ -30,7 +30,7 @@ void __msg_send(struct msg *msg) {
 	msg_q->last = msg;
 }
 
-struct msg *__msg_read(uint32_t id) {
+static struct msg *__msg_read(uint32_t id) {
 	struct msg *ret = NULL;
 
 	if(msg_q == NULL) {

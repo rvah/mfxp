@@ -11,7 +11,7 @@
 struct dict_node **__cmd_lut;
 struct linked_str_node *__cmd_list;
 
-void dict_and_list_set(struct dict_node **dict, const char *key, void *value) {
+static void dict_and_list_set(struct dict_node **dict, const char *key, void *value) {
 	struct linked_str_node *item = malloc(sizeof(struct linked_str_node));
 	item->str = strdup(key);
 	item->next = NULL;
@@ -26,7 +26,7 @@ void dict_and_list_set(struct dict_node **dict, const char *key, void *value) {
 	dict_set(dict, key, value);
 }
 
-void init_command_tables() {
+static void init_command_tables() {
 	__cmd_lut = dict_create();
 
 	dict_and_list_set(__cmd_lut, "help", &cmd_help);
@@ -78,7 +78,7 @@ void init_command_tables() {
 	dict_and_list_set(__cmd_lut, "rqfxp", &cmd_rqfxp);
 }
 
-char *command_name_generator(const char *text, int state) {
+static char *command_name_generator(const char *text, int state) {
 	static int len;
 	static struct linked_str_node *p;
 	//char *name;
@@ -102,7 +102,7 @@ char *command_name_generator(const char *text, int state) {
 	return NULL;
 }
 
-char *command_arg_generator(const char *text, int state) {
+static char *command_arg_generator(const char *text, int state) {
 	static struct file_item *cur = NULL;
 	static int len;
 	if(!state) {
@@ -150,7 +150,7 @@ char *command_arg_generator(const char *text, int state) {
 	return NULL;
 }
 
-void parse_command_line(char *line) {
+static void parse_command_line(char *line) {
 	//if NULL, ctrl+d probably pressed. terminate.
 	if(line == NULL) {
 		printf("\n"); //make it pretty!
@@ -176,7 +176,7 @@ void parse_command_line(char *line) {
 	(*fp)(line);
 }
 
-int get_current_arg_n() {
+static int get_current_arg_n() {
 	char *t = strdup(rl_line_buffer);
 	char *s;
 	int n = 0;
@@ -192,7 +192,7 @@ int get_current_arg_n() {
 	return n;
 }
 
-char **tab_auto_complete(const char *text, int start, int end) {
+static char **tab_auto_complete(const char *text, int start, int end) {
 	int arg_n = get_current_arg_n();
 	//printf("argn: %d\n",arg_n);
 	rl_attempted_completion_over = 1;

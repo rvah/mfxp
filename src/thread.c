@@ -8,12 +8,12 @@
  * ----------------
  */
 
-uint32_t gen_id() {
+static uint32_t gen_id() {
 	static uint32_t id = 100;
 	return id++;
 }
 
-void ui_handle_event(struct msg *m) {
+static void ui_handle_event(struct msg *m) {
 	struct ui_log *d = m->data;
 
 	switch(m->event) {
@@ -72,7 +72,7 @@ void ui_handle_event(struct msg *m) {
 	free(m);
 }
 
-void site_handle_event(struct msg *m, struct site_info *s) {
+static void site_handle_event(struct msg *m, struct site_info *s) {
 	switch(m->event) {
 	case EV_SITE_LS:
 		if(!s->ls_do_cache && !ftp_ls(s)) {

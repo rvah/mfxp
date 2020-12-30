@@ -9,7 +9,7 @@
  * ----------------
  */
 
-char *get_arg(char *line, int i) {
+static char *get_arg(char *line, int i) {
 	char *save;
 	strtok_r(strdup(line), " \t", &save);
 	char *arg = NULL;
@@ -21,7 +21,7 @@ char *get_arg(char *line, int i) {
 	return arg;
 }
 
-char *get_arg_full(char *line, int i) {
+static char *get_arg_full(char *line, int i) {
 	char *save;
 	strtok_r(strdup(line), " \t", &save);
 
@@ -35,11 +35,11 @@ char *get_arg_full(char *line, int i) {
 	return save;
 }
 
-void bad_arg(char *cmd) {
+static void bad_arg(char *cmd) {
 	printf("bad arg\n");
 }
 
-struct site_info *get_site(char which) {
+static struct site_info *get_site(char which) {
 	struct site_pair *pair = site_get_current_pair();
 
 	if(which == 'l') {

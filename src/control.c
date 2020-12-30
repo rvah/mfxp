@@ -7,7 +7,7 @@
  *
  * ----------------
  */
-uint32_t parse_code(char *buf) {
+static uint32_t parse_code(char *buf) {
 	char a = buf[0] - 0x30;
 	char b = buf[1] - 0x30;
 	char c = buf[2] - 0x30;
@@ -20,11 +20,11 @@ uint32_t parse_code(char *buf) {
 	return a*100 + b*10 + c;
 }
 
-bool response_is_eof(char *buf) {
+static bool response_is_eof(char *buf) {
 	return buf[3] == ' ';
 }
 
-ssize_t read_control_socket(struct site_info *site, void *buf, size_t len, bool force_plaintext) {
+static ssize_t read_control_socket(struct site_info *site, void *buf, size_t len, bool force_plaintext) {
 	if(site->use_tls && !force_plaintext) {
 		return SSL_read(site->secure_fd, buf, len);
 	} else {
@@ -32,7 +32,7 @@ ssize_t read_control_socket(struct site_info *site, void *buf, size_t len, bool 
 	}
 }
 
-ssize_t write_control_socket(struct site_info *site, const void *buf, size_t len, bool force_plaintext) {
+static ssize_t write_control_socket(struct site_info *site, const void *buf, size_t len, bool force_plaintext) {
 	if(site->use_tls && !force_plaintext) {
 		return SSL_write(site->secure_fd, buf, len);
 	} else {
@@ -40,7 +40,7 @@ ssize_t write_control_socket(struct site_info *site, const void *buf, size_t len
 	}
 }
 
-bool send_request(struct site_info *site, char *data, bool force_plaintext) {
+static bool send_request(struct site_info *site, char *data, bool force_plaintext) {
 	site_busy(site);
 
 	uint32_t len = strlen(data);
@@ -68,7 +68,7 @@ bool send_request(struct site_info *site, char *data, bool force_plaintext) {
 	return true;
 }
 
-int32_t recv_response(struct site_info *site, bool force_plaintext) {
+static int32_t recv_response(struct site_info *site, bool force_plaintext) {
 	site_busy(site);
 	char buf[CONTROL_BUF_SZ];
 	char line[CONTROL_LINE_SZ]; // control code + space/dash

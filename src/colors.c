@@ -10,7 +10,7 @@ struct color_config *__color_conf = NULL;
  * ----------------
  */
 
-void _colors_init() {
+static void init() {
 	__color_conf = malloc(sizeof(struct color_config));
 
 	__color_conf->skip_file = __color_red;
@@ -34,7 +34,7 @@ struct color_config *colors_get_conf() {
 
 void colors_set_setting(const char *name, const char *value) {
 	if(__color_conf == NULL) {
-		_colors_init();
+		init();
 	}
 
 	char *v = strdup(value);

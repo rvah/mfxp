@@ -10,7 +10,7 @@ struct site_pair *current_pair = NULL;
  * ----------------
  */
 
-void list_add_site(struct site_list **list, struct site_info *site) {
+static void list_add_site(struct site_list **list, struct site_info *site) {
 	if(*list == NULL) {
 		(*list) = malloc(sizeof(struct site_list));
 		(*list)->site = site;

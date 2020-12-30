@@ -10,7 +10,7 @@ struct config *app_conf = NULL;
  * ----------------
  */
 
-bool __config_init() {
+static bool init() {
 	app_conf = malloc(sizeof(struct config));
 	app_conf->sites = NULL;
 	app_conf->enable_xdupe = false;
@@ -31,7 +31,8 @@ bool __config_init() {
 	return true;
 }
 
-void print_site_configs() {
+/*
+static void print_site_configs() {
 	if(app_conf->sites == NULL) {
 		printf("no sites added!\n");
 		return;
@@ -49,6 +50,7 @@ void print_site_configs() {
 		p = p->next;
 	}
 }
+*/
 
 static int ini_read_handler(void* user, const char* section, const char* name, const char* value) {
 	char *save;
@@ -202,7 +204,7 @@ void add_site_config(struct site_config *conf) {
 
 
 bool config_read(char *path) {
-	if(!__config_init()) {
+	if(!init()) {
 		return false;
 	}
 

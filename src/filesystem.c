@@ -10,7 +10,7 @@ static uint32_t __current_sort = SORT_TYPE_TIME_DESC;
  * ----------------
  */
 
-struct sort_node *az_comparator(void *a, void *b, bool asc) {
+static struct sort_node *az_comparator(void *a, void *b, bool asc) {
 	if(asc) {
 		if(((struct file_item *)a)->file_name[0] <= ((struct file_item *)b)->file_name[0]) {
 			return a;
@@ -24,7 +24,7 @@ struct sort_node *az_comparator(void *a, void *b, bool asc) {
 	return b;
 }
 
-struct sort_node *time_comparator(void *a, void *b, bool asc) {
+static struct sort_node *time_comparator(void *a, void *b, bool asc) {
 	//tmp fix for local dirlist which doesnt have dates
 	if(((struct file_item *)a)->date[0] == '\0') {
 		return az_comparator(a, b, asc);
@@ -52,7 +52,7 @@ struct sort_node *time_comparator(void *a, void *b, bool asc) {
 	return b;
 }
 
-struct sort_node *size_comparator(void *a, void *b, bool asc) {
+static struct sort_node *size_comparator(void *a, void *b, bool asc) {
 	if(asc) {
 		if(((struct file_item *)a)->size <= ((struct file_item *)b)->size) {
 			return a;
@@ -66,7 +66,7 @@ struct sort_node *size_comparator(void *a, void *b, bool asc) {
 	return b;
 }
 
-struct sort_node *general_comparator(void *a, void*b) {
+static struct sort_node *general_comparator(void *a, void*b) {
 	switch(filesystem_get_sort()) {
 	case SORT_TYPE_TIME_ASC:
 		return time_comparator(a, b, true);
@@ -85,7 +85,7 @@ struct sort_node *general_comparator(void *a, void*b) {
 	return a;
 }
 
-struct sort_node *priority_comparator(void *a, void *b) {
+static struct sort_node *priority_comparator(void *a, void *b) {
 	//first check if diff prio
 	if(((struct file_item *)a)->priority < ((struct file_item *)b)->priority) {
 		return a;
@@ -99,7 +99,7 @@ struct sort_node *priority_comparator(void *a, void *b) {
 	return general_comparator(a, b);
 }
 
-void dirlist_sort(struct file_item **list, bool prio_sort) {
+static void dirlist_sort(struct file_item **list, bool prio_sort) {
 	if(prio_sort) {
 		merge_sort((struct sort_node **)list, priority_comparator);
 	} else {
@@ -110,7 +110,7 @@ void dirlist_sort(struct file_item **list, bool prio_sort) {
 /*
  * ----------------
  *
- * Private functions
+ * Public functions
  *
  * ----------------
  */

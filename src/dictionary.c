@@ -8,7 +8,7 @@
  * ----------------
  */
 
-uint32_t get_index(uint32_t key_hash) {
+static uint32_t get_index(uint32_t key_hash) {
 	return key_hash % DICT_SIZE;
 }
 

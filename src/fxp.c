@@ -8,7 +8,7 @@
  * ----------------
  */
 
-struct transfer_result *transfer_recursive(struct site_info *src,
+static struct transfer_result *transfer_recursive(struct site_info *src,
 		struct site_info *dst, const char *dirname, const char *src_dir,
 		const char *dst_dir) {
 	struct transfer_result *ret_val = NULL;

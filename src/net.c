@@ -9,7 +9,7 @@
  */
 
 
-void sigchld_handler(int s) {
+static void sigchld_handler(int s) {
 	int saved_errno = errno;
 
 	while(waitpid(-1, NULL, WNOHANG) > 0);
