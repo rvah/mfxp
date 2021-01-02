@@ -10,7 +10,6 @@ struct dict_node {
 	void *value;
 };
 
-uint32_t dict_hash(const char *key);
 bool dict_has_key(struct dict_node **dict, const char *key);
 void *dict_get(struct dict_node **dict, const char *key);
 void dict_set(struct dict_node **dict, const char *key, void *value);

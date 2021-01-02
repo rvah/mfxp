@@ -12,14 +12,6 @@ static uint32_t get_index(uint32_t key_hash) {
 	return key_hash % DICT_SIZE;
 }
 
-/*
- * ----------------
- *
- * Public functions
- *
- * ----------------
- */
-
 uint32_t dict_hash(const char *key) {
 	uint32_t hv = 0;
 
@@ -37,6 +29,14 @@ uint32_t dict_hash(const char *key) {
 
 	return hv;
 }
+
+/*
+ * ----------------
+ *
+ * Public functions
+ *
+ * ----------------
+ */
 
 bool dict_has_key(struct dict_node **dict, const char *key) {
 	uint32_t k_hash = dict_hash(key);
