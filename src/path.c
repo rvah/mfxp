@@ -3,6 +3,14 @@
 
 
 char *path_expand_home(const char *in) {
+	if(in == NULL) {
+		return strdup("");
+	}
+
+	if(strlen(in) == 0) {
+		return strdup("");
+	}
+
 	char *d = strdup(in);
 	str_trim(d);
 
@@ -18,6 +26,18 @@ char *path_expand_home(const char *in) {
 }
 
 char *path_expand_full_remote(const char *in, const char *cwd) {
+	if(in == NULL || cwd == NULL) {
+		return strdup("");
+	}
+
+	if(strlen(in) == 0) {
+		return strdup("");
+	}
+
+	if(strlen(cwd) == 0) {
+		return strdup("");
+	}
+
 	char *d = strdup(in);
 	str_trim(d);
 
@@ -36,7 +56,15 @@ char *path_expand_full_remote(const char *in, const char *cwd) {
 	if(strcmp(cwd, "/") == 0) {
 		snprintf(s_new, n_len, "/%s", p);
 	} else {
-		snprintf(s_new, n_len, "%s/%s", cwd, p);
+		if(p[0] == '/') {
+			p++;
+		}
+
+		if(cwd[strlen(cwd)-1] == '/') {
+			snprintf(s_new, n_len, "%s%s", cwd, p);
+		} else {
+			snprintf(s_new, n_len, "%s/%s", cwd, p);
+		}
 	}
 
 	free(d);
@@ -44,6 +72,14 @@ char *path_expand_full_remote(const char *in, const char *cwd) {
 }
 
 char *path_expand_full_local(const char *in) {
+	if(in == NULL) {
+		return strdup("");
+	}
+	
+	if(strlen(in) == 0) {
+		return strdup("");
+	}
+
 	char *d = path_expand_home(in);
 
 	if(d == NULL) {
@@ -64,6 +100,10 @@ char *path_expand_full_local(const char *in) {
 	int flen = strlen(real)+strlen(file)+2;
 	char *ret = malloc(flen);
 
+	if(strcmp(file, ".") == 0) {
+		file[0] = '\0';
+	}
+
 	//prevent /// and // paths
 
 	if(strcmp(real, "/") == 0) {
@@ -80,6 +120,10 @@ char *path_expand_full_local(const char *in) {
 }
 
 char *path_get_dir_path(char *s) {
+	if(s == NULL || strlen(s) == 0) {
+		return strdup("");
+	}
+
 	char *d = strdup(s);
 	char *r = strdup(dirname(d));
 	free(d);
@@ -106,9 +150,17 @@ char *path_get_dir_path(char *s) {
 }
 
 char *path_get_filename(char *s) {
+	if(s == NULL || strlen(s) == 0) {
+		return strdup("");
+	}
+
 	char *d = strdup(s);
 	char *r = strdup(basename(d));
 	free(d);
+
+	if(strcmp(r, "/") == 0) {
+		r[0] = '\0';
+	}
 
 	return r;
 }

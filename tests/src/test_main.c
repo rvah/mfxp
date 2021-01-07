@@ -5,6 +5,8 @@
 #include "test_filesystem.h"
 #include "test_linked_list.h"
 #include "test_site.h"
+#include "test_path.h"
+#include "test_str.h"
 
 void setUp() {
 }
@@ -18,5 +20,7 @@ int main() {
 	test_run_filesystem();
 	test_run_linked_list();
 	test_run_site();
+	test_run_path();
+	test_run_str();
 	return UNITY_END();
 }

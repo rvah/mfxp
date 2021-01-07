@@ -10,3 +10,4 @@ void str_rtrim_special_only(char *s);
 void str_trim(char *s);
 void str_rtrim_slash(char *s);
 void str_tolower(char *s);
+char *str_concat(const char *a, const char *b);

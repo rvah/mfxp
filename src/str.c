@@ -66,3 +66,24 @@ void str_tolower(char *s) {
 		s[i] = tolower(s[i]);
 	}
 }
+
+char *str_concat(const char *a, const char *b) {
+	if(a == NULL) {
+		return strdup(b);
+	}
+
+	if(b == NULL) {
+		return strdup(a);
+	}
+
+	size_t l_a = strlen(a);
+	size_t l_b = strlen(b);
+	size_t l_tot = l_a+l_b+1;
+	char *r = malloc(l_tot);
+	r[0] = '\0';
+
+	strlcat(r, a, l_tot);
+	strlcat(r, b, l_tot);
+
+	return r;
+}
