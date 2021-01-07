@@ -24,3 +24,4 @@ struct date_info {
 };
 
 time_t date_to_unixtime(struct date_info *date);
+char *time_to_stat_str(time_t t);

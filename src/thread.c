@@ -1,4 +1,5 @@
 #include "thread.h"
+#include "filesystem.h"
 
 /*
  * ----------------
@@ -148,8 +149,13 @@ static void site_handle_event(struct msg *m, struct site_info *s) {
 		str_rtrim_slash((char *)m->data);
 		char *p_dir = str_get_path((char *)m->data);
 		char *p_filename = str_get_file((char *)m->data);
-		struct file_item *local_file = filesystem_find_local_file(p_dir,
+
+		char *s_list = filesystem_local_list(p_dir);
+		struct file_item *f_files = filesystem_parse_list(s_list, LOCAL);
+		struct file_item *local_file = filesystem_find_file(f_files,
 				p_filename);
+
+		free(s_list);
 
 		if(local_file == NULL) {
 			log_ui(s->thread_id, LOG_T_E, "%s: no such file exists!\n",

@@ -97,6 +97,10 @@ char *expand_full_local_path(const char *in) {
 }
 
 bool __match_rule(const char *rule, const char *str, int ri, int si) {
+	if(rule == NULL) {
+		return false;
+	}
+
 	if(rule[ri]  == '\0') {
 		return str[si] == '\0';
 	}

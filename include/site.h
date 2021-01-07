@@ -5,17 +5,13 @@
 #include "general.h"
 #include "filesystem.h"
 #include "dictionary.h"
+#include "linked_list.h"
 
 #define SITE_NAME_MAX 1024
 #define SITE_HOST_MAX 1024
 #define SITE_USER_MAX 1024
 #define SITE_PASS_MAX 1024
 #define SITE_PORT_MAX 6
-
-struct site_list {
-	struct site_list *next;
-	struct site_info *site;
-};
 
 struct site_info {
 	char name[SITE_NAME_MAX];
@@ -54,16 +50,19 @@ struct site_pair {
 	struct site_info *right;
 };
 
-struct site_info *site_init(char *name, char *address, char *port, char *username, char *password, bool use_tls);
+struct site_info *site_init(char *name, char *address, char *port,
+		char *username, char *password, bool use_tls);
 void site_busy(struct site_info *site);
 void site_idle(struct site_info *site);
 void site_set_cwd(struct site_info *site, char *cwd);
-struct site_list *site_get_all();
-void site_destroy_list(struct site_list *list);
-struct site_list *site_get_sites_connecting();
+struct linked_list *site_get_all();
+struct linked_list *site_get_sites_connecting();
 void site_xdupe_add(struct site_info *site, const char *file);
 void site_xdupe_clear(struct site_info *site);
 bool site_xdupe_has(struct site_info *site, const char *file);
 struct site_pair *site_get_current_pair();
-void site_destroy_pair(struct site_pair *pair);
+struct site_pair *site_create_pair(struct site_info *site_l,
+		struct site_info *site_r);
+struct linked_list *site_get_all_pairs();
+void site_destroy_all();
 uint32_t site_gen_id();

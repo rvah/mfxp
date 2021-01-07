@@ -4,6 +4,7 @@
 #include "log.h"
 #include "util.h"
 #include "site.h"
+#include "linked_list.h"
 
 #define IDENT_MAX_PORT_LEN 6
 #define IDENT_MAX_NAME_LEN 255

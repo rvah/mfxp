@@ -1,4 +1,5 @@
 #include "command.h"
+#include "filesystem.h"
 #include "sm.h"
 
 /*
@@ -423,7 +424,9 @@ void cmd_nfo(char *line, char which) {
 }
 
 void cmd_local_ls(char *line) {
-	struct file_item *fl = filesystem_local_ls("./", false);
+	char *s_list = filesystem_local_list("./");
+	struct file_item *fl = filesystem_parse_list(s_list, LOCAL);
+	free(s_list);
 	struct file_item *prev = NULL;
 
 	char cwd[PATH_MAX];

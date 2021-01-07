@@ -4,7 +4,9 @@
 #include <libgen.h>
 #include "transfer_result.h"
 #include "filesystem.h"
+#include "dictionary.h"
 
+//struct **dict_node list_to_dict(
 char *concat_paths(const char *a, const char *b);
 char *expand_home_path(const char *in);
 char *expand_full_remote_path(const char *in, const char *cwd);

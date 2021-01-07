@@ -1,4 +1,5 @@
 #include "ftp.h"
+#include "filesystem.h"
 
 /*
  * ----------------
@@ -195,7 +196,11 @@ struct transfer_result *put_recursive(struct site_info *site, const char *dirnam
 	char *_local_dir = strdup(local_dir);
 	char *_remote_dir = strdup(remote_dir);
 
-	struct file_item *local_file = filesystem_find_local_file(_local_dir, _dirname);
+	char *str_list = filesystem_local_list(_local_dir);
+	struct file_item *f_files = filesystem_parse_list(str_list, LOCAL);
+	struct file_item *local_file = filesystem_find_file(f_files, _dirname);
+
+	free(str_list);
 
 	if(local_file == NULL) {
 		ret_val = transfer_result_create(false, strdup(_dirname), 0, 0.0f, false, FILE_TYPE_DIR);
@@ -232,7 +237,10 @@ struct transfer_result *put_recursive(struct site_info *site, const char *dirnam
 		goto _put_recursive_cleanup;
 	}
 
-	l_list = filesystem_local_ls(new_lpath, true);
+	//TODO: check prio
+	char *s_list = filesystem_local_list(new_lpath);
+	l_list = filesystem_parse_list(s_list, LOCAL);
+	free(s_list);
 	struct file_item *lp = l_list;
 
 	if(lp == NULL) {
@@ -410,7 +418,7 @@ bool ftp_ls(struct site_info *site) {
 		return false;
 	}
 
-	struct file_item *fl = filesystem_parse_list(site->last_recv);
+	struct file_item *fl = filesystem_parse_list(site->last_recv, GLFTPD);
 	filesystem_file_item_destroy(site->cur_dirlist);
 	site->cur_dirlist = fl;
 
@@ -682,8 +690,11 @@ struct transfer_result *ftp_get(struct site_info *site, const char *filename, co
 		goto _ftp_get_cleanup;
 	}
 
+	char *s_list = filesystem_local_list(local_dir);
+	struct file_item *f_files = filesystem_parse_list(s_list, LOCAL);
+	loc_file = filesystem_find_file(f_files, filename);
 
-	loc_file = filesystem_find_local_file(local_dir, filename);
+	free(s_list);
 
 	if(loc_file != NULL) {
 		log_ui(site->thread_id, LOG_T_W, "%s: file exists, skipping\n", filename);
@@ -821,7 +832,13 @@ struct transfer_result *ftp_put(struct site_info *site, const char *filename, co
 	char *new_lpath = NULL;
 	char *new_rpath = NULL;
 
-	struct file_item *local_file = filesystem_find_local_file(local_dir, filename);
+
+	char *s_list = filesystem_local_list(local_dir);
+	struct file_item *f_files = filesystem_parse_list(s_list, LOCAL);
+
+	struct file_item *local_file = filesystem_find_file(f_files, filename);
+	free(s_list);
+
 	struct timeval time_start;
 	struct timeval time_end;
 

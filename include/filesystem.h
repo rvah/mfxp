@@ -28,6 +28,7 @@
 #define SORT_TYPE_SIZE_ASC 4
 #define SORT_TYPE_SIZE_DESC 5
 
+enum filesystem_list_type { LOCAL, GLFTPD };
 
 struct file_item {
 	struct file_item *next;
@@ -47,12 +48,11 @@ uint32_t filesystem_get_sort();
 void filesystem_set_sort(uint32_t sort);
 void filesystem_file_item_destroy(struct file_item * item);
 struct file_item *filesystem_file_item_cpy(struct file_item * item);
-struct file_item *filesystem_find_local_file(const char *path, const char *filename);
-struct file_item *filesystem_filter_list(struct file_item *list, char *file_mask);
-struct file_item *filesystem_parse_list_filtered(char *text_list, char *file_mask);
-struct file_item *filesystem_local_ls_filtered(char *path, bool prio_sort, char *file_mask);
-struct file_item *filesystem_local_ls(char *path, bool prio_sort);
-struct file_item *filesystem_find_file(struct file_item *list, const char *filename);
+struct file_item *filesystem_find_file(struct file_item *list,
+		const char *filename);
+struct file_item *filesystem_filter_list(struct file_item *list,
+		char *file_mask);
+char *filesystem_local_list(const char *path);
 void filesystem_print_file_item(struct file_item *item);
-struct file_item *filesystem_parse_list(char *text_list);
-struct file_item *filesystem_parse_line(char *line);
+struct file_item *filesystem_parse_list(const char *text_list,
+		enum filesystem_list_type list_type);

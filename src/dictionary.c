@@ -39,6 +39,10 @@ uint32_t dict_hash(const char *key) {
  */
 
 bool dict_has_key(struct dict_node **dict, const char *key) {
+	if(key == NULL) {
+		return false;
+	}
+
 	uint32_t k_hash = dict_hash(key);
 	uint32_t index = get_index(k_hash);
 

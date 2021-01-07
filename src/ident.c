@@ -1,4 +1,5 @@
 #include "ident.h"
+#include "linked_list.h"
 
 static struct ident_config *ident_conf = NULL;
 
@@ -67,9 +68,9 @@ void ident_start() {
 		//if always on not enabled, make sure some site is in connecting state
 		//- if not, close connection
 		if(!ident_conf->always_on) {
-			struct site_list *sl = site_get_sites_connecting();
-			bool is_connecting = sl != NULL;
-			site_destroy_list(sl);
+			struct linked_list *sl = site_get_sites_connecting();
+			bool is_connecting = linked_list_count(sl) > 0;
+			linked_list_destroy(sl);
 
 			if(!is_connecting) {
 				close(newfd);

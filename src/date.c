@@ -15,3 +15,13 @@ time_t date_to_unixtime(struct date_info *date) {
 
 	return mktime(tmp);
 }
+
+char *time_to_stat_str(time_t t) {
+	struct tm lt;
+	localtime_r(&t, &lt);
+	char *buf = malloc(16);
+
+	strftime(buf, 16, "%b %e %Y", &lt);
+
+	return buf;
+}

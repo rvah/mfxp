@@ -107,255 +107,14 @@ static void dirlist_sort(struct file_item **list, bool prio_sort) {
 	}
 }
 
-/*
- * ----------------
- *
- * Public functions
- *
- * ----------------
- */
 
-uint32_t filesystem_get_sort() {
-	return __current_sort;
-}
-
-void filesystem_set_sort(uint32_t sort) {
-	__current_sort = sort;
-}
-
-void filesystem_file_item_destroy(struct file_item *item) {
-	if(item == NULL) {
-		return;
-	}
-
-	struct file_item *prev;
-
-	while(item != NULL) {
-		prev = item;
-		item = item->next;
-		free(prev);
-	}
-}
-
-struct file_item *filesystem_file_item_cpy(struct file_item * item) {
-	struct file_item *r_item = NULL;
-	struct file_item *first_item = NULL;
-
-	while(item != NULL) {
-		if(r_item == NULL) {
-			r_item = malloc(sizeof(struct file_item));
-			memcpy(r_item, item, sizeof(struct file_item));
-			first_item = r_item;
-		} else {
-			r_item->next = malloc(sizeof(struct file_item));
-			memcpy(r_item->next, item, sizeof(struct file_item));
-			r_item = r_item->next;
-		}
-		item = item->next;
-	}
-
-	return first_item;
-}
-
-struct file_item *filesystem_find_local_file(const char *path, const char *filename) {
-	DIR *dir;
-	struct dirent *ent;
-	struct file_item *item = NULL;
-
-	if ((dir = opendir (path)) != NULL) {
-		while ((ent = readdir (dir)) != NULL) {
-			if( (strlen(ent->d_name) == 0) ||
-				(strcmp(ent->d_name, ".") == 0) ||
-				(strcmp(ent->d_name, "..") == 0)) {
-				continue;
-			}
-
-			if(strcmp(ent->d_name, filename) == 0) {
-				if((ent->d_type == DT_DIR) || (ent->d_type == DT_REG)) {
-					item = malloc(sizeof(struct file_item));
-					strlcpy(item->file_name, ent->d_name, MAX_FILENAME_LEN);
-					str_trim(item->file_name);
-					item->file_type = (ent->d_type == DT_REG) ? FILE_TYPE_FILE : FILE_TYPE_DIR;
-					item->skip = skiplist_skip(item->file_name);
-					return item;
-				}
-			}
-		}
-		closedir (dir);
-	}
-
-	return item;
-}
-
-struct file_item *filesystem_filter_list(struct file_item *list, char *file_mask) {
-	if(list == NULL) {
-		return NULL;
-	}
-
-	struct file_item *f = NULL;
-	struct file_item *t = NULL;
-
-	while(list != NULL) {
-		if(match_rule(file_mask, list->file_name)) {
-			t = list->next;
-
-			if(f == NULL) {
-				list->next = NULL;
-				f = list;
-			} else {
-				list->next = f;
-				f = list;
-			}
-
-			list = t;
-		} else {
-			t = list;
-			list = list->next;
-			free(t);
-		}
-	}
-
-	return f;
-}
-
-struct file_item *filesystem_parse_list_filtered(char *text_list, char *file_mask) {
-	struct file_item *l = filesystem_parse_list(text_list);
-
-	return filesystem_filter_list(l, file_mask);
-}
-
-struct file_item *filesystem_local_ls_filtered(char *path, bool prio_sort, char *file_mask) {
-	struct file_item *l = filesystem_local_ls(path, prio_sort);
-
-	return filesystem_filter_list(l, file_mask);
-}
-
-struct file_item *filesystem_local_ls(char *path, bool prio_sort) {
-	DIR *dir;
-	struct dirent *ent;
-	struct file_item *list = NULL;
-	struct file_item *item = NULL;
-
-	if ((dir = opendir (path)) != NULL) {
-		while ((ent = readdir (dir)) != NULL) {
-			if( (strlen(ent->d_name) == 0) ||
-				(strcmp(ent->d_name, ".") == 0) ||
-				(strcmp(ent->d_name, "..") == 0)) {
-				continue;
-			}
-
-			if((ent->d_type == DT_DIR) || (ent->d_type == DT_REG)) {
-				item = malloc(sizeof(struct file_item));
-				strlcpy(item->file_name, ent->d_name, MAX_FILENAME_LEN);
-				item->file_type = (ent->d_type == DT_REG) ? FILE_TYPE_FILE : FILE_TYPE_DIR;
-				item->skip = skiplist_skip(item->file_name);
-				item->priority = priolist_get_priority(item->file_name);
-				item->hilight = hilight_file(item->file_name);
-				item->date[0] = '\0';
-				item->next = NULL;
-
-				if(list == NULL) {
-					list = item;
-				} else {
-					item->next = list;
-					list = item;
-				}
-			}
-		}
-	}
-
-	dirlist_sort(&list, prio_sort);
-
-	return list;
-}
-
-struct file_item *filesystem_find_file(struct file_item *list, const char *filename) {
-	if(list == NULL) {
-		return NULL;
-	}
-
-	while(list != NULL) {
-		if(strcmp(list->file_name, filename) == 0) {
-			return list;
-		}
-		list = list->next;
-	}
-
-	return NULL;
-}
-
-void filesystem_print_file_item(struct file_item *item) {
-	printf("--- -  ->\n");
-	printf("Type: %d\n", item->file_type);
-	printf("Permissions: %s\n", item->permissions);
-	printf("Owner/User: %s\n", item->owner_user);
-	printf("Owner/Group: %s\n", item->owner_group);
-	printf("Size(b): %lu\n", item->size);
-	printf("date: %s\n", item->date);
-	printf("name: %s\n", item->file_name);
-	printf("<-  - ---\n");
-}
-
-struct file_item *filesystem_parse_list(char *text_list) {
-	char *save;
-	char *line = strtok_r(text_list, "\n", &save);
-
-	//we want to skip the first totals string, run strtok again
-	line = strtok_r(NULL, "\n", &save);
-	struct file_item *first_item = NULL;
-	struct file_item *prev_item = NULL;
-
-	while(line != NULL) {
-		bool foundEnd = false;
-
-		//if line starts with numbers, strip them
-		while((*line >= 0x30) && (*line <= 0x39)) {
-			line++;
-
-			//if next char is -, read line, if space, we are EOF
-			//(proftpd adds code on all lines, glftpd only on last)
-			if(*line == '-') {
-				line++;
-			} else if(*line == ' ') {
-				foundEnd = true;
-				break;
-			}
-		}
-
-		if(foundEnd) {
-			break;
-		}
-
-		struct file_item *item = filesystem_parse_line(line);
-
-		if(item == NULL) {
-			line = strtok_r(NULL, "\n", &save);
-			continue;
-		}
-
-		if(first_item == NULL) {
-			first_item = item;
-		} else {
-			prev_item->next = item;
-		}
-
-		prev_item = item;
-
-		line = strtok_r(NULL, "\n", &save);
-	}
-
-	dirlist_sort(&first_item, true);
-
-	return first_item;
-}
-
-struct file_item *filesystem_parse_line(char *line) {
+struct file_item *parse_line_glftpd(const char *line) {
 	if( (line[0] != '-') && (line[0] != 'd') && (line[0] != 'l')) {
 		return NULL;
 	}
 
 	char *save;
-	char *column = strtok_r(line, " \t", &save);
+	char *column = strtok_r(strdup(line), " \t", &save);
 
 	struct file_item *item = malloc(sizeof(struct file_item));
 
@@ -440,4 +199,270 @@ struct file_item *filesystem_parse_line(char *line) {
 	}
 
 	return item;
+}
+
+struct file_item *parse_line_local(const char *line) {
+	//for now, using same format as glftpd dirs
+	return parse_line_glftpd(line);
+}
+
+struct file_item *parse_list(const char *text_list,
+		enum filesystem_list_type list_type) {
+	char *save;
+	char *line = strtok_r(strdup(text_list), "\n", &save);
+
+	struct file_item *first_item = NULL;
+	struct file_item *prev_item = NULL;
+
+	while(line != NULL) {
+		//if line starts with "total", skip it
+		if(strncmp(line, "total", 5) == 0) {
+			line = strtok_r(NULL, "\n", &save);
+			continue;
+		}
+
+		bool foundEnd = false;
+
+		//if line starts with numbers, strip them
+		while((*line >= 0x30) && (*line <= 0x39)) {
+			line++;
+
+			//if next char is -, read line, if space, we are EOF
+			//(proftpd adds code on all lines, glftpd only on last)
+			if(*line == '-') {
+				line++;
+			} else if(*line == ' ') {
+				foundEnd = true;
+				break;
+			}
+		}
+
+		if(foundEnd) {
+			break;
+		}
+
+		struct file_item *item = NULL;
+		switch(list_type) {
+		case LOCAL:
+			item = parse_line_local(line);
+			break;
+		case GLFTPD:
+			item = parse_line_glftpd(line);
+			break;
+		}
+
+		if(item == NULL) {
+			line = strtok_r(NULL, "\n", &save);
+			continue;
+		}
+
+		if(first_item == NULL) {
+			first_item = item;
+		} else {
+			prev_item->next = item;
+		}
+
+		prev_item = item;
+
+		line = strtok_r(NULL, "\n", &save);
+	}
+
+	dirlist_sort(&first_item, true);
+
+	return first_item;
+}
+
+/*
+ * ----------------
+ *
+ * Public functions
+ *
+ * ----------------
+ */
+
+uint32_t filesystem_get_sort() {
+	return __current_sort;
+}
+
+void filesystem_set_sort(uint32_t sort) {
+	__current_sort = sort;
+}
+
+void filesystem_file_item_destroy(struct file_item *item) {
+	if(item == NULL) {
+		return;
+	}
+
+	struct file_item *prev;
+
+	while(item != NULL) {
+		prev = item;
+		item = item->next;
+		free(prev);
+	}
+}
+
+struct file_item *filesystem_file_item_cpy(struct file_item * item) {
+	struct file_item *r_item = NULL;
+	struct file_item *first_item = NULL;
+
+	while(item != NULL) {
+		if(r_item == NULL) {
+			r_item = malloc(sizeof(struct file_item));
+			memcpy(r_item, item, sizeof(struct file_item));
+			first_item = r_item;
+		} else {
+			r_item->next = malloc(sizeof(struct file_item));
+			memcpy(r_item->next, item, sizeof(struct file_item));
+			r_item = r_item->next;
+		}
+		item = item->next;
+	}
+
+	return first_item;
+}
+
+struct file_item *filesystem_find_file(struct file_item *list, const char *filename) {
+	if(list == NULL) {
+		return NULL;
+	}
+
+	if(filename == NULL) {
+		return NULL;
+	}
+
+	while(list != NULL) {
+		if(strcmp(list->file_name, filename) == 0) {
+			return list;
+		}
+		list = list->next;
+	}
+
+	return NULL;
+}
+
+struct file_item *filesystem_filter_list(struct file_item *list, char *file_mask) {
+	if(list == NULL) {
+		return NULL;
+	}
+
+	struct file_item *f = NULL;
+	struct file_item *t = NULL;
+
+	while(list != NULL) {
+		if(match_rule(file_mask, list->file_name)) {
+			t = list->next;
+
+			if(f == NULL) {
+				list->next = NULL;
+				f = list;
+			} else {
+				list->next = f;
+				f = list;
+			}
+
+			list = t;
+		} else {
+			t = list;
+			list = list->next;
+			free(t);
+		}
+	}
+	return f;
+}
+
+char *filesystem_local_list(const char *path) {
+	size_t buf_len = 1024;
+	size_t s_tlen = 0;
+
+	char *out = malloc(buf_len);
+	out[0] = '\0';
+
+	DIR *dir;
+	struct dirent *ent;
+
+	if((dir = opendir(path)) == NULL) {
+		goto _filesystem_local_list_err;
+	}
+
+	char *fmt = "%crwxrwxrwx 1 %d %d %d %s %s\n";
+
+	while ((ent = readdir (dir)) != NULL) {
+		/*
+			stat -la format:
+			drwxr-xr-x  14 glftpd   glftpd       4096 Nov 13 14:17 ..
+			-rw-r--r--   1 user     NoGroup      5334 Dec 23 15:23 c.c
+		*/
+
+		char *full_path = concat_paths(path, ent->d_name);
+		struct stat s_stat;
+
+		if(lstat(full_path, &s_stat) == -1) {
+			printf("error: could not read file: %s\n", full_path);
+			free(full_path);
+			continue;
+		}
+
+		char type = '-';
+		uint32_t mode = s_stat.st_mode & S_IFMT;
+
+		switch(mode) {
+		case S_IFDIR:
+			type = 'd';
+			break;
+		case S_IFREG:
+			type = '-';
+			break;
+		case S_IFLNK:
+			type = 'l';
+			break;
+		default:
+			break;
+		}
+
+		char *f_time = time_to_stat_str(s_stat.st_mtime);
+		char s_len = snprintf(NULL, 0, fmt, type, s_stat.st_uid, s_stat.st_gid,
+				s_stat.st_size, f_time, ent->d_name) + 1;
+
+		char *s_fmt = malloc(s_len);
+		snprintf(s_fmt, s_len, fmt, type, s_stat.st_uid, s_stat.st_gid,
+				s_stat.st_size, f_time, ent->d_name);
+
+		s_tlen += s_len;
+
+		if(s_tlen > buf_len) {
+			buf_len += 1024;
+			out = realloc(out, buf_len);
+		}
+
+		strlcat(out, s_fmt, buf_len);
+
+		free(s_fmt);
+		free(full_path);
+		free(f_time);
+
+	}
+
+	return out;
+
+_filesystem_local_list_err:
+	free(out);
+	return "";
+}
+
+void filesystem_print_file_item(struct file_item *item) {
+	printf("--- -  ->\n");
+	printf("Type: %d\n", item->file_type);
+	printf("Permissions: %s\n", item->permissions);
+	printf("Owner/User: %s\n", item->owner_user);
+	printf("Owner/Group: %s\n", item->owner_group);
+	printf("Size(b): %lu\n", item->size);
+	printf("date: %s\n", item->date);
+	printf("name: %s\n", item->file_name);
+	printf("<-  - ---\n");
+}
+
+struct file_item *filesystem_parse_list(const char *text_list,
+		enum filesystem_list_type list_type) {
+	return parse_list(text_list, list_type);
 }

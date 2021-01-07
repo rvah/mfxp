@@ -1,4 +1,5 @@
 #include "queue.h"
+#include "filesystem.h"
 
 static struct queue_item *__transfer_queue = NULL;
 static bool __queue_running = false;
@@ -251,9 +252,12 @@ void queue_execute() {
 void queue_add_put(struct site_info *site, char *path_local, char *path_site) {
 	char *realpath = expand_full_local_path(path_local);
 	char *dir = dirname(strdup(realpath));
-	struct file_item *files = filesystem_local_ls_filtered(dir, true,
-			basename(strdup(realpath)));
+	//TODO: check prio
+	char *t_list = filesystem_local_list(dir);
+	struct file_item *files = filesystem_parse_list(t_list, LOCAL);
+	files = filesystem_filter_list(files, basename(strdup(realpath)));
 
+	free(t_list);
 	free(realpath);
 
 	if(files == NULL) {
