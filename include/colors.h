@@ -1,6 +1,7 @@
 #pragma once
 #include "general.h"
 #include "util.h"
+#include "str.h"
 
 #define TCOL_RED "\x1B[31m"
 #define TCOL_GREEN "\x1B[32m"

@@ -8,3 +8,5 @@ tags
 *.log
 compile_commands.json
 rfxp
+vgcore.*
+mfxp_test

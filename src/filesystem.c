@@ -394,7 +394,7 @@ char *filesystem_local_list(const char *path) {
 			-rw-r--r--   1 user     NoGroup      5334 Dec 23 15:23 c.c
 		*/
 
-		char *full_path = concat_paths(path, ent->d_name);
+		char *full_path = path_append_file(path, ent->d_name);
 		struct stat s_stat;
 
 		if(lstat(full_path, &s_stat) == -1) {

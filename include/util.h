@@ -6,20 +6,5 @@
 #include "filesystem.h"
 #include "dictionary.h"
 
-//struct **dict_node list_to_dict(
-char *concat_paths(const char *a, const char *b);
-char *expand_home_path(const char *in);
-char *expand_full_remote_path(const char *in, const char *cwd);
-char *expand_full_local_path(const char *in);
 bool match_rule(const char *rule, const char *str);
-void str_ltrim(char *s);
-void str_rtrim(char *s);
-void str_rtrim_special_only(char *s);
-void str_trim(char *s);
-void str_rtrim_slash(char *s);
 bool file_exists (char *filename);
-char *str_get_path(char *s);
-char *str_get_file(char *s);
-char *path_append_file(const char *path, const char *file);
-char *path_append_dir(const char *path, const char *dir);
-void str_tolower(char *s);

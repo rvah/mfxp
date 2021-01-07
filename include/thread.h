@@ -16,6 +16,7 @@
 #include "queue.h"
 #include "ftp.h"
 #include "fxp.h"
+#include "path.h"
 
 struct fxp_arg {
 	char *filename;

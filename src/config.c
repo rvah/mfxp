@@ -15,7 +15,7 @@ static bool init() {
 	app_conf->sites = NULL;
 	app_conf->enable_xdupe = false;
 
-	char *path = expand_home_path(MFXP_CONF_DIR);
+	char *path = path_expand_home(MFXP_CONF_DIR);
 
 	//check if config dir exist
 	if(!file_exists(path)) {
@@ -247,7 +247,7 @@ bool write_site_config_file(struct site_config *sites, const char *key) {
 	head.reserved3 = 0;
 	head.reserved4 = 0;
 
-	char *dbpath = expand_home_path(SITE_CONFIG_FILE_PATH);
+	char *dbpath = path_expand_home(SITE_CONFIG_FILE_PATH);
 
 	FILE *fp = fopen(dbpath, "wb");
 
@@ -289,7 +289,7 @@ bool write_site_config_file(struct site_config *sites, const char *key) {
 }
 
 struct site_config *read_site_config_file(const char *key) {
-	char *dbpath = expand_home_path(SITE_CONFIG_FILE_PATH);
+	char *dbpath = path_expand_home(SITE_CONFIG_FILE_PATH);
 
 	//if file dont exist, simply return
 	if(!file_exists(dbpath)) {

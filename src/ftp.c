@@ -650,7 +650,7 @@ bool ftp_stor(struct site_info *site, char *filename) {
 		struct linked_str_node *xdupe_list = parse_xdupe(site->last_recv);
 		struct linked_str_node *tmp_node;
 
-		char *p_dir = str_get_path(filename);
+		char *p_dir = path_get_dir_path(filename);
 
 		while(xdupe_list != NULL) {
 			char *path = path_append_file(p_dir, xdupe_list->str);

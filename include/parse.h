@@ -4,6 +4,7 @@
 #include "util.h"
 #include "date.h"
 #include "dictionary.h"
+#include "str.h"
 
 struct date_info *parse_date(const char *in);
 bool parse_pasv(const char *in, char *out_addr, uint32_t *out_port, char *out_unparsed);

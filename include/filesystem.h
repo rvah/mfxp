@@ -8,6 +8,7 @@
 #include "hilight.h"
 #include "parse.h"
 #include "date.h"
+#include "path.h"
 
 #define MAX_PATH_LEN 4096
 #define MAX_FILENAME_LEN 1024

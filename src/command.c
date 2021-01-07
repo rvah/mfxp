@@ -617,7 +617,7 @@ void cmd_qput(char *line, char which) {
 		return;
 	}
 
-	char *lpath = expand_full_local_path(arg_path);
+	char *lpath = path_expand_full_local(arg_path);
 
 	if(lpath == NULL) {
 		printf("path does not exist.\n");
@@ -642,7 +642,7 @@ void cmd_qget(char *line, char which) {
 		return;
 	}
 
-	char *rpath = expand_full_remote_path(arg_path, s->current_working_dir);
+	char *rpath = path_expand_full_remote(arg_path, s->current_working_dir);
 
 	queue_add_get(s, rpath, realpath(".", NULL));
 }
@@ -679,7 +679,7 @@ void cmd_qfxp(char *line, char which) {
 		return;
 	}
 
-	char *spath = expand_full_remote_path(arg_path, s->current_working_dir);
+	char *spath = path_expand_full_remote(arg_path, s->current_working_dir);
 
 	queue_add_fxp(s, d, spath, d->current_working_dir);
 }

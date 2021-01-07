@@ -55,7 +55,7 @@ static char *item_info_string(struct queue_item *item) {
 		break;
 	}
 
-	char *src_path = concat_paths(item->path_src, item->filename);
+	char *src_path = path_append_file(item->path_src, item->filename);
 
 	size_t len = snprintf(NULL, 0, fmt, item->id,
 		src, src_path, dst, item->path_dst) + 1;
@@ -250,7 +250,7 @@ void queue_execute() {
 }
 
 void queue_add_put(struct site_info *site, char *path_local, char *path_site) {
-	char *realpath = expand_full_local_path(path_local);
+	char *realpath = path_expand_full_local(path_local);
 	char *dir = dirname(strdup(realpath));
 	//TODO: check prio
 	char *t_list = filesystem_local_list(dir);

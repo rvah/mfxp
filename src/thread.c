@@ -147,8 +147,8 @@ static void site_handle_event(struct msg *m, struct site_info *s) {
 			break;
 		}
 		str_rtrim_slash((char *)m->data);
-		char *p_dir = str_get_path((char *)m->data);
-		char *p_filename = str_get_file((char *)m->data);
+		char *p_dir = path_get_dir_path((char *)m->data);
+		char *p_filename = path_get_filename((char *)m->data);
 
 		char *s_list = filesystem_local_list(p_dir);
 		struct file_item *f_files = filesystem_parse_list(s_list, LOCAL);

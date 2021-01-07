@@ -7,6 +7,7 @@
 #include "ident.h"
 #include "colors.h"
 #include "crypto.h"
+#include "path.h"
 
 #define MFXP_CONF_DIR "~/.mfxp/"
 #define SITE_CONFIG_FILE_PATH "~/.mfxp/sitedb.dat"

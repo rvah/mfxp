@@ -38,7 +38,7 @@ void init() {
 	msg_init();
 	ssl_init();
 
-	char *conf_path = expand_home_path("~/.mfxp/config.ini");
+	char *conf_path = path_expand_home("~/.mfxp/config.ini");
 	
 	if(!config_read(conf_path)) {
 		printf("failed to read config!\n");
