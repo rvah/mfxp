@@ -1,5 +1,6 @@
 #include "ident.h"
 #include "linked_list.h"
+#include "net.h"
 
 static struct ident_config *ident_conf = NULL;
 
@@ -73,7 +74,7 @@ void ident_start() {
 			linked_list_destroy(sl);
 
 			if(!is_connecting) {
-				close(newfd);
+				net_close_socket(newfd);
 
 				log_ui(THREAD_ID_IDENT, LOG_T_W, "Ident: suspicious connection attempt from %s!\n", s);
 			}
@@ -82,14 +83,14 @@ void ident_start() {
 		log_w("ident server: got connection from %s\n", s);
 
 		if (!fork()) {
-			close(sockfd); // child doesn't need the listener
+			net_close_socket(sockfd); // child doesn't need the listener
 
 			char buf[1024];
 			char *ident_fmt = "%s : USERID : UNIX : %s\n";
 			int l_reply = 1024 + strlen(ident_fmt) + strlen(ident_conf->name) + 1;
 			char *s_reply = malloc(l_reply);
 
-			ssize_t n = recv(newfd, buf, 1024, 0);
+			ssize_t n = net_socket_recv(newfd, buf, 1024, 0);
 
 			int l_buf = strlen(buf);
 			bool replied = false;
@@ -108,19 +109,19 @@ void ident_start() {
 				s_reply[0] = '\0';
 			}
 			
-			if (send(newfd, s_reply, strlen(s_reply)+1, 0) == -1) {
+			if (net_socket_send(newfd, s_reply, strlen(s_reply)+1, 0) == -1) {
 				log_w("error: ident send");
 			} else {
 				log_w("replied: %s", s_reply);
 			}
 
 			free(s_reply);
-			close(newfd);
+			net_close_socket(newfd);
 			exit(0);
 		}
 
-		close(newfd);
+		net_close_socket(newfd);
 	}
 
-	close(sockfd);
+	net_close_socket(sockfd);
 }

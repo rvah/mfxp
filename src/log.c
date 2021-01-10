@@ -1,6 +1,6 @@
 #include "log.h"
 
-static FILE *logfd;
+static FILE *logfd = NULL;
 static pthread_mutex_t log_mtx;
 
 bool log_init() {
@@ -51,6 +51,10 @@ void log_print(uint32_t n) {
 }
 
 void log_w(char *format, ...) {
+	if(logfd == NULL) {
+		return;
+	}
+
 	pthread_mutex_lock(&log_mtx);	
 
 	va_list args;

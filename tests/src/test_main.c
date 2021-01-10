@@ -7,6 +7,7 @@
 #include "test_site.h"
 #include "test_path.h"
 #include "test_str.h"
+#include "test_ftp.h"
 
 void setUp() {
 }
@@ -22,5 +23,6 @@ int main() {
 	test_run_site();
 	test_run_path();
 	test_run_str();
+	test_run_ftp();
 	return UNITY_END();
 }

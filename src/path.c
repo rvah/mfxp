@@ -166,6 +166,14 @@ char *path_get_filename(char *s) {
 }
 
 char *path_append_file(const char *path, const char *file) {
+	if(path == NULL || file == NULL) {
+		return strdup("");
+	}
+
+	if(strlen(path) == 0 || strlen(file) == 0) {
+		return strdup("");
+	}
+
 	int p_len = strlen(path);
 	int f_len = strlen(file);
 	int new_len = p_len + f_len + 2;
@@ -183,6 +191,10 @@ char *path_append_file(const char *path, const char *file) {
 char *path_append_dir(const char *path, const char *dir) {
 	char *t = path_append_file(path, dir);
 	int t_len = strlen(t);
+
+	if(t_len == 0) {
+		return t;
+	}
 
 	if(t[t_len-1] != '/') {
 		int new_len = t_len+2;

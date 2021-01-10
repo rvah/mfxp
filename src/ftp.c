@@ -1,11 +1,16 @@
 #include "ftp.h"
 #include "filesystem.h"
+#include "net.h"
 
 /*
  * ----------------
  * Private functions
  * ----------------
  */
+
+bool valid_str_arg(const char *str) {
+	return str != NULL && strlen(str) > 0;
+}
 
 bool open_data(struct site_info *site) {
 	if(!site->prot_sent) {
@@ -37,7 +42,7 @@ bool data_enable_tls(struct site_info *site) {
 
 	if(ctx == NULL) {
 		log_w("failed to get SSL context\n");
-		close(site->data_socket_fd);
+		net_close_socket(site->data_socket_fd);
 		return false;
 	}
 
@@ -48,7 +53,7 @@ bool data_enable_tls(struct site_info *site) {
 		log_w("TLS FAILED, ERROR:\n");
 		ERR_print_errors_fp(stderr);
 		SSL_CTX_free(ctx);
-		close(site->data_socket_fd);
+		net_close_socket(site->data_socket_fd);
 		return false;
 	}
 
@@ -367,50 +372,66 @@ bool ftp_connect(struct site_info *site) {
 }
 
 void ftp_disconnect(struct site_info *site) {
-	close(site->socket_fd);
+	net_close_socket(site->socket_fd);
 	log_w("FTP session was terminated\n");
 }
 
 bool ftp_retr(struct site_info *site, char *filename) {
+	if(!valid_str_arg(filename)) {
+		return false;
+	}
+
 	int slen = strlen(filename)+9;
 	char *s_retr = malloc(slen);
 
 	snprintf(s_retr, slen, "RETR %s\r\n", filename);
-	control_send(site, s_retr);
+	bool ret = control_send(site, s_retr) && control_recv(site) == 150;
 
 	free(s_retr);
 
-	return control_recv(site) == 150;
+	return ret;
 }
 
 
 bool ftp_cwd(struct site_info *site, const char *dirname) {
+	if(!valid_str_arg(dirname)) {
+		return false;
+	}
+
 	int cmd_len = strlen(dirname) + 7;
 	char *s_cmd = malloc(cmd_len);
 
 	snprintf(s_cmd, cmd_len, "CWD %s\r\n", dirname);
 
-	control_send(site, s_cmd);
+	bool ret = control_send(site, s_cmd)
+		&& control_recv(site) == 250 && ftp_pwd(site);
+
 	free(s_cmd);
 
-	return (control_recv(site) == 250) && ftp_pwd(site);
+	return ret;
 }
 
 bool ftp_mkd(struct site_info *site, char *dirname) {
+	if(!valid_str_arg(dirname)) {
+		return false;
+	}
+
 	int cmd_len = strlen(dirname) + 7;
 	char *s_cmd = malloc(cmd_len);
 
 	snprintf(s_cmd, cmd_len, "MKD %s\r\n", dirname);
 
-	control_send(site, s_cmd);
+	bool ret = control_send(site, s_cmd) && control_recv(site) == 257;
 	free(s_cmd);
 
-	return control_recv(site) == 257;
+	return ret;
 }
 
 bool ftp_ls(struct site_info *site) {
 	//get list
-	control_send(site, "STAT -la\r\n");
+	if(!control_send(site, "STAT -la\r\n")) {
+		return false;
+	}
 
 	uint32_t code = control_recv(site);
 
@@ -436,9 +457,7 @@ bool ftp_sscn(struct site_info *site, bool set_on) {
 
 	char *s_cmd = set_on ? s_on : s_off;
 
-	control_send(site, s_cmd);
-
-	if(control_recv(site) == 200) {
+	if(control_send(site, s_cmd) && control_recv(site) == 200) {
 		site->sscn_on = set_on;
 		return true;
 	}
@@ -447,9 +466,7 @@ bool ftp_sscn(struct site_info *site, bool set_on) {
 }
 
 bool ftp_prot(struct site_info *site) {
-	control_send(site, "PROT P\r\n");
-
-	if(control_recv(site) == 200) {
+	if(control_send(site, "PROT P\r\n") && control_recv(site) == 200) {
 		site->prot_sent = true;
 		return true;
 	}
@@ -459,7 +476,10 @@ bool ftp_prot(struct site_info *site) {
 
 bool ftp_pwd(struct site_info *site) {
 	//read pwd
-	control_send(site, "PWD\r\n");
+	if(!control_send(site, "PWD\r\n")) {
+		return false;
+	}
+
 	uint32_t code = control_recv(site);
 
 	if(code != 257) {
@@ -488,7 +508,9 @@ bool ftp_pwd(struct site_info *site) {
 
 
 bool ftp_feat(struct site_info *site) {
-	control_send(site, "FEAT\r\n");
+	if(!control_send(site, "FEAT\r\n")) {
+		return false;
+	}
 
 	//check features supported that we might use
 	uint32_t code = control_recv(site);
@@ -519,12 +541,9 @@ bool ftp_xdupe(struct site_info *site, uint32_t level) {
 
 	snprintf(s, 16, "SITE XDUPE %d\r\n", level);
 
-	control_send(site, s);
-	bool ret = control_recv(site) == 200;
+	bool ret = control_send(site, s) && control_recv(site) == 200;
 
-	if(ret) {
-		site->xdupe_enabled = true;
-	}
+	site->xdupe_enabled = ret;
 
 	return ret;
 }
@@ -536,7 +555,10 @@ bool ftp_auth(struct site_info *site) {
 
 	//init TLS connection if enabled
 	if(site->use_tls) {
-		control_send(site, "AUTH TLS\r\n");
+		if(!control_send(site, "AUTH TLS\r\n")) {
+			return false;
+		}
+
 		code = control_recv(site);
 
 		if(code != 234) {
@@ -614,10 +636,16 @@ bool ftp_auth(struct site_info *site) {
 
 
 struct pasv_details *ftp_pasv(struct site_info *site, bool handshake) {
+	bool sent = false;
+
 	if(handshake) {
-		control_send(site, "CPSV\r\n");
+		sent = control_send(site, "CPSV\r\n");
 	} else {
-		control_send(site, "PASV\r\n");
+		sent = control_send(site, "PASV\r\n");
+	}
+	
+	if(!sent) {
+		return NULL;
 	}
 
 	if(control_recv(site) != 227) {
@@ -635,26 +663,27 @@ struct pasv_details *ftp_pasv(struct site_info *site, bool handshake) {
 
 
 bool ftp_stor(struct site_info *site, char *filename) {
+	if(!valid_str_arg(filename)) {
+		return false;
+	}
+
 	int slen = strlen(filename)+9;
 	char *s_retr = malloc(slen);
 
 	snprintf(s_retr, slen, "STOR %s\r\n", filename);
-	control_send(site, s_retr);
+
+	bool ret = control_send(site, s_retr) && control_recv(site) == 150;
 
 	free(s_retr);
-
-	bool ret = control_recv(site) == 150;
 
 	//if xdupe enabled and there are xdupe strings in output, parse it
 	if(site->xdupe_enabled && (strstr(site->last_recv, "X-DUPE") != NULL)) {
 		struct linked_str_node *xdupe_list = parse_xdupe(site->last_recv);
 		struct linked_str_node *tmp_node;
-
 		char *p_dir = path_get_dir_path(filename);
 
 		while(xdupe_list != NULL) {
 			char *path = path_append_file(p_dir, xdupe_list->str);
-
 			site_xdupe_add(site, path);
 
 			tmp_node = xdupe_list;
@@ -726,7 +755,7 @@ struct transfer_result *ftp_get(struct site_info *site, const char *filename, co
 	new_rpath = path_append_file(remote_dir, filename);
 
 	if(!ftp_retr(site, new_rpath)) {
-		close(site->data_socket_fd);
+		net_close_socket(site->data_socket_fd);
 		ret_val = transfer_result_create(false, strdup(filename), 0, 0.0f, false, FILE_TYPE_FILE);
 		goto _ftp_get_cleanup;
 	}
@@ -746,7 +775,7 @@ struct transfer_result *ftp_get(struct site_info *site, const char *filename, co
 
 	if(fd == NULL) {
 		log_w("error opening file for writing\n");
-		close(site->data_socket_fd);
+		net_close_socket(site->data_socket_fd);
 		ret_val = transfer_result_create(false, strdup(filename), 0, 0.0f, false, FILE_TYPE_FILE);
 		goto _ftp_get_cleanup;
 	}
@@ -795,7 +824,7 @@ struct transfer_result *ftp_get(struct site_info *site, const char *filename, co
 	}
 
 	fclose(fd);
-	close(site->data_socket_fd);
+	net_close_socket(site->data_socket_fd);
 
 	uint32_t code = control_recv(site);
 
@@ -879,7 +908,7 @@ struct transfer_result *ftp_put(struct site_info *site, const char *filename, co
 	new_lpath = path_append_file(local_dir, filename);
 
 	if(!ftp_stor(site, new_rpath)) {
-		close(site->data_socket_fd);
+		net_close_socket(site->data_socket_fd);
 		ret_val = transfer_result_create(false, strdup(filename), 0, 0.0f, false, FILE_TYPE_FILE);
 		goto _ftp_put_cleanup;
 	}
@@ -904,7 +933,7 @@ struct transfer_result *ftp_put(struct site_info *site, const char *filename, co
 
 	if(fd == NULL) {
 		log_w("error opening file for reading\n");
-		close(site->data_socket_fd);
+		net_close_socket(site->data_socket_fd);
 		ret_val = transfer_result_create(false, strdup(filename), 0, 0.0f, false, FILE_TYPE_FILE);
 		goto _ftp_put_cleanup;
 	}
@@ -924,7 +953,7 @@ struct transfer_result *ftp_put(struct site_info *site, const char *filename, co
 			if( (ferror(fd) != 0) || (feof(fd) == 0) ) {
 				log_w("error reading data\n");
 				fclose(fd);
-				close(site->data_socket_fd);
+				net_close_socket(site->data_socket_fd);
 				ret_val = transfer_result_create(false, strdup(filename), 0, 0.0f, false, FILE_TYPE_FILE);
 				goto _ftp_put_cleanup;
 			}
@@ -940,7 +969,7 @@ struct transfer_result *ftp_put(struct site_info *site, const char *filename, co
 			if(n == -1) {
 				log_w("error writing data\n");
 				fclose(fd);
-				close(site->data_socket_fd);
+				net_close_socket(site->data_socket_fd);
 				ret_val = transfer_result_create(false, strdup(filename), 0, 0.0f, false, FILE_TYPE_FILE);
 				goto _ftp_put_cleanup;
 			}
@@ -966,7 +995,7 @@ struct transfer_result *ftp_put(struct site_info *site, const char *filename, co
 	}
 
 	fclose(fd);
-	close(site->data_socket_fd);
+	net_close_socket(site->data_socket_fd);
 
 	if(control_recv(site) == 226) {
 		//calculate speed on succ. transfer

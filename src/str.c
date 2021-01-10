@@ -1,6 +1,10 @@
 #include "str.h"
 
 void str_ltrim(char *s) {
+	if(s == NULL) {
+		return;
+	}
+
 	int shift_n = 0;
 	char *ps = s;
 	size_t len = strlen(s);
@@ -9,7 +13,7 @@ void str_ltrim(char *s) {
 		return;
 	}
 
-	while(*ps <= 0x20) {
+	while(*ps <= 0x20 && *ps != '\0') {
 		shift_n++;
 		ps++;
 	}
@@ -23,7 +27,7 @@ void __str_rtrim(char *s, bool trim_space) {
 	if(len == 0) {
 		return;
 	}
-	
+
 	s += len-1;
 
 	char treshold = trim_space ? 0x1F : 0x20;
@@ -31,15 +35,27 @@ void __str_rtrim(char *s, bool trim_space) {
 	while(*s <= treshold) {
 		*s = '\0';
 		s--;
+		len--;
+		if(len == 0) {
+			break;
+		}
 	}
 }
 
 void str_rtrim(char *s) {
-	return __str_rtrim(s, false);
+	if(s == NULL) {
+		return;
+	}
+
+	__str_rtrim(s, false);
 }
 
 void str_rtrim_special_only(char *s) {
-	return __str_rtrim(s, true);
+	if(s == NULL) {
+		return;
+	}
+
+	__str_rtrim(s, true);
 }
 
 void str_trim(char *s) {
@@ -62,6 +78,14 @@ void str_rtrim_slash(char *s) {
 }
 
 void str_tolower(char *s) {
+	if(s == NULL) {
+		return;
+	}
+
+	if(strlen(s) == 0) {
+		return;
+	}
+
 	for(int i = 0; s[i]; i++) {
 		s[i] = tolower(s[i]);
 	}
@@ -69,11 +93,11 @@ void str_tolower(char *s) {
 
 char *str_concat(const char *a, const char *b) {
 	if(a == NULL) {
-		return strdup(b);
+		return NULL;
 	}
 
 	if(b == NULL) {
-		return strdup(a);
+		return NULL;
 	}
 
 	size_t l_a = strlen(a);

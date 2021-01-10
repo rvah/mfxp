@@ -1,15 +1,4 @@
 #include "test_path.h"
-#include "path.h"
-
-/*
-char *path_expand_home(const char *in);
-char *path_expand_full_remote(const char *in, const char *cwd);
-char *path_expand_full_local(const char *in);
-char *path_get_dir_path(char *s);
-char *path_get_filename(char *s);
-char *path_append_file(const char *path, const char *file);
-char *path_append_dir(const char *path, const char *dir);
-*/
 
 void test_path_expand_home() {
 	struct passwd *pw = getpwuid(getuid());
@@ -133,10 +122,6 @@ void test_path_expand_full_local() {
 }
 
 void test_path_parse_dir_and_filename() {
-/*
-char *path_get_dir_path(char *s);
-char *path_get_filename(char *s);
-*/
 	char *p1 = path_get_dir_path("/");
 	char *p2 = path_get_dir_path("/d/f");
 
@@ -171,9 +156,55 @@ char *path_get_filename(char *s);
 }
 
 void test_path_append_file() {
+	char *f1 = path_append_file(NULL, "f");
+	char *f2 = path_append_file("/d", NULL);
+	char *f3 = path_append_file("", "f");
+	char *f4 = path_append_file("/d", "");
+	char *f5 = path_append_file("/", "f");
+	char *f6 = path_append_file("/path/", "f");
+	char *f7 = path_append_file("/path", "f");
+
+	TEST_ASSERT_TRUE(strcmp(f1, "") == 0);
+	TEST_ASSERT_TRUE(strcmp(f2, "") == 0);
+	TEST_ASSERT_TRUE(strcmp(f3, "") == 0);
+	TEST_ASSERT_TRUE(strcmp(f4, "") == 0);
+	TEST_ASSERT_TRUE(strcmp(f5, "/f") == 0);
+	TEST_ASSERT_TRUE(strcmp(f6, "/path/f") == 0);
+	TEST_ASSERT_TRUE(strcmp(f7, "/path/f") == 0);	
+
+	free(f1);
+	free(f2);
+	free(f3);
+	free(f4);
+	free(f5);
+	free(f6);
+	free(f7);
 }
 
 void test_path_append_dir() {
+	char *f1 = path_append_dir(NULL, "f");
+	char *f2 = path_append_dir("/d", NULL);
+	char *f3 = path_append_dir("", "f");
+	char *f4 = path_append_dir("/d", "");
+	char *f5 = path_append_dir("/", "f");
+	char *f6 = path_append_dir("/path/", "f");
+	char *f7 = path_append_dir("/path", "f");
+
+	TEST_ASSERT_TRUE(strcmp(f1, "") == 0);
+	TEST_ASSERT_TRUE(strcmp(f2, "") == 0);
+	TEST_ASSERT_TRUE(strcmp(f3, "") == 0);
+	TEST_ASSERT_TRUE(strcmp(f4, "") == 0);
+	TEST_ASSERT_TRUE(strcmp(f5, "/f/") == 0);
+	TEST_ASSERT_TRUE(strcmp(f6, "/path/f/") == 0);
+	TEST_ASSERT_TRUE(strcmp(f7, "/path/f/") == 0);	
+
+	free(f1);
+	free(f2);
+	free(f3);
+	free(f4);
+	free(f5);
+	free(f6);
+	free(f7);
 }
 
 void test_run_path() {
