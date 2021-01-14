@@ -1,7 +1,7 @@
 #include "mock_net.h"
-#include <bits/stdint-uintn.h>
 
 static uint32_t opener_call_count = 0;
+static uint32_t opener_secure_call_count = 0;
 static uint32_t closer_call_count = 0;
 static uint32_t sender_call_count = 0;
 static uint32_t ssender_call_count = 0;
@@ -14,7 +14,7 @@ static uint32_t request_index = 0;
 static uint32_t response_index = 0;
 
 static ssize_t request_socket(const void *buf, size_t n) {
-//	printf("---CMP---\n%s\n%s\n", buf, request[request_index]);
+	printf("---CMP---\n%s\n%s\n", (char *)buf, request[request_index]);
 	if(strcmp(buf, request[request_index++]) != 0) {
 		return -1;
 	}
@@ -42,6 +42,15 @@ void mock_net_set_socket_response(char **data) {
 int32_t mock_net_socket_opener(char *address, char *port) {
 	opener_call_count++;
 	return 0;
+}
+
+int mock_net_socket_secure_opener(SSL *ssl) {
+	opener_secure_call_count++;
+	return 0;
+}
+
+bool mock_net_socket_secure_opener_verify_opened(uint32_t times) {
+	return times == opener_secure_call_count;
 }
 
 bool mock_net_socket_opener_verify_opened(uint32_t times) {
@@ -95,6 +104,7 @@ bool mock_net_socket_secure_receiver_verify_opened(uint32_t times) {
 
 void mock_net_reset() {
 	opener_call_count = 0;
+	opener_secure_call_count = 0;
 	closer_call_count = 0;
 	sender_call_count = 0;
 	ssender_call_count = 0;

@@ -1,14 +1,17 @@
 #include "stats.h"
 
+uint64_t time_to_usec(struct timeval *t) {
+	return t->tv_sec * 1000000 + t->tv_usec;
+}
+
 double calc_transfer_speed(struct timeval *start, struct timeval *end, uint64_t size) {
-	uint64_t msec_start = start->tv_sec * 1000000 + start->tv_usec; 
-	uint64_t msec_end = end->tv_sec * 1000000 + end->tv_usec;
-	uint64_t diff_msec = msec_end - msec_start;
+	uint64_t usec_start = time_to_usec(start);
+	uint64_t usec_end = time_to_usec(end);
+	uint64_t diff_usec = usec_end - usec_start;
 
-	double diff_sec = (double)diff_msec / 1000000.0f;
-	double bps = (double)size / diff_sec;
+	double bps = (double)size / diff_usec;
 
-	return bps;
+	return bps * 1000000.0f;
 }
 
 char *s_get_speed(double speed) {
@@ -103,5 +106,40 @@ char *s_gen_stats(struct transfer_result *tr, uint64_t seconds) {
 	free(s_speed);
 	free(s_size);
 
-	return s_stat;	
+	return s_stat;
+}
+
+struct stats_transfer *stats_transfer_create() {
+	struct stats_transfer *r = malloc(sizeof(struct stats_transfer));
+
+	r->status = sts_PROGRESS;
+	gettimeofday(&r->t_start, NULL);
+	gettimeofday(&r->t_end, NULL);
+	r->tot_avg_speed = 0.0;
+	r->cur_avg_speed = 0.0;
+
+	return r;
+}
+
+void stats_transfer_update(struct stats_transfer *s, size_t bytes_sent) {
+	s->tot_bytes_sent += bytes_sent;
+
+	struct timeval t_cur;
+	gettimeofday(&t_cur, NULL);
+
+	if(time_to_usec(&t_cur) - time_to_usec(&s->t_end) >= STATS_UPDATE_FREQ_USEC
+			|| s->status == sts_DONE) {
+		s->tot_avg_speed = calc_transfer_speed(&s->t_start, &t_cur, s->tot_bytes_sent);
+		s->cur_avg_speed = calc_transfer_speed(&s->t_end, &t_cur, bytes_sent);
+	}
+
+	s->t_end = t_cur;
+}
+
+double stats_transfer_duration(struct stats_transfer *s) {
+	return (double)(time_to_usec(&s->t_end) - time_to_usec(&s->t_start)) / 1000000;
+}
+
+void stats_transfer_destroy(struct stats_transfer *stats) {
+	free(stats);
 }

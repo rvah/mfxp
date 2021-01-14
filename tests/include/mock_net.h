@@ -7,7 +7,9 @@
 void mock_net_set_socket_request(char **data);
 void mock_net_set_socket_response(char **data);
 int32_t mock_net_socket_opener(char *address, char *port);
+int mock_net_socket_secure_opener(SSL *ssl);
 bool mock_net_socket_opener_verify_opened(uint32_t times);
+bool mock_net_socket_secure_opener_verify_opened(uint32_t times);
 int32_t mock_net_socket_closer(int32_t fd);
 ssize_t mock_net_socket_receiver(int fd, void *buf, size_t n, int flags);
 ssize_t mock_net_socket_sender(int fd, const void *buf, size_t n, int flags);

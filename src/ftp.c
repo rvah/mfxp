@@ -1,6 +1,8 @@
 #include "ftp.h"
 #include "filesystem.h"
+#include "io.h"
 #include "net.h"
+#include "stats.h"
 
 /*
  * ----------------
@@ -49,7 +51,7 @@ bool data_enable_tls(struct site_info *site) {
 	SSL *ssl = SSL_new(ctx);
 	SSL_set_fd(ssl, site->data_socket_fd);
 
-	if(SSL_connect(ssl) == -1) {
+	if(net_open_socket_secure(ssl) == -1) {
 		log_w("TLS FAILED, ERROR:\n");
 		ERR_print_errors_fp(stderr);
 		SSL_CTX_free(ctx);
@@ -63,13 +65,14 @@ bool data_enable_tls(struct site_info *site) {
 }
 
 
-struct transfer_result *get_recursive(struct site_info *site, const char *dirname, const char *local_dir, const char *remote_dir) {
+struct transfer_result *get_recursive(struct site_info *site,
+		const char *dirname, const char *local_dir, const char *remote_dir) {
 	struct transfer_result *ret_val = NULL;
 	struct file_item *first_file = NULL;
 	char *new_lpath = NULL;
 	char *new_rpath = NULL;
 
-	//make copy of dirname, local_dir, remote_dir to prevent cwd from manipulating ptr
+	//make copy of dirname,local_dir,remote_dir to prevent cwd from manip. ptr
 	char *_dirname = strdup(dirname);
 	char *_local_dir = strdup(local_dir);
 	char *_remote_dir = strdup(remote_dir);
@@ -77,13 +80,15 @@ struct transfer_result *get_recursive(struct site_info *site, const char *dirnam
 	struct file_item *file = filesystem_find_file(site->cur_dirlist, _dirname);
 
 	if(file == NULL) {
-		ret_val = transfer_result_create(false, strdup(_dirname), 0, 0.0f, false, FILE_TYPE_DIR);
+		ret_val = transfer_result_create(
+				false, strdup(_dirname), 0, 0.0f, false, FILE_TYPE_DIR);
 		goto _get_recursive_cleanup;
 	}
 
 	if(file->skip) {
 		log_ui(site->thread_id, LOG_T_W, "%s: skip\n", _dirname);
-		ret_val = transfer_result_create(true, strdup(_dirname), 0, 0.0f, true, FILE_TYPE_DIR);
+		ret_val = transfer_result_create(
+				true, strdup(_dirname), 0, 0.0f, true, FILE_TYPE_DIR);
 		goto _get_recursive_cleanup;
 	}
 
@@ -91,34 +96,41 @@ struct transfer_result *get_recursive(struct site_info *site, const char *dirnam
 	new_rpath = path_append_dir(_remote_dir, _dirname);
 
 	if(!ftp_cwd(site, new_rpath)) {
-		ret_val = transfer_result_create(false, strdup(_dirname), 0, 0.0f, false, FILE_TYPE_DIR);
+		ret_val = transfer_result_create(
+				false, strdup(_dirname), 0, 0.0f, false, FILE_TYPE_DIR);
 		goto _get_recursive_cleanup;
 	}
 
 	if(!file_exists(new_lpath)) {
 		log_ui(site->thread_id, LOG_T_I, "%s: creating dir\n", new_lpath);
 		if(mkdir(new_lpath, 0755) != 0) {
-			log_ui(site->thread_id, LOG_T_E, "%s: unable to mkdir!\n", new_lpath, FILE_TYPE_DIR);
-			ret_val = transfer_result_create(false, strdup(_dirname), 0, 0.0f, false, FILE_TYPE_DIR);
+			log_ui(site->thread_id, LOG_T_E, "%s: unable to mkdir!\n",
+					new_lpath, FILE_TYPE_DIR);
+			ret_val = transfer_result_create(
+					false, strdup(_dirname), 0, 0.0f, false, FILE_TYPE_DIR);
 			goto _get_recursive_cleanup;
 		}
 	}
 
 	if(!ftp_ls(site)) {
-		log_ui(site->thread_id, LOG_T_E, "%s: unable to get dirlist!\n", _dirname);
-		ret_val = transfer_result_create(false, strdup(dirname), 0, 0.0f, false, FILE_TYPE_DIR);
+		log_ui(site->thread_id, LOG_T_E, "%s: unable to get dirlist!\n",
+				_dirname);
+		ret_val = transfer_result_create(
+				false, strdup(dirname), 0, 0.0f, false, FILE_TYPE_DIR);
 		goto _get_recursive_cleanup;
 	}
 
 	if(site->cur_dirlist == NULL) {
 		log_ui(site->thread_id, LOG_T_W, "%s: empty dir\n", _dirname);
-		ret_val = transfer_result_create(true, strdup(_dirname), 0, 0.0f, true, FILE_TYPE_DIR);
+		ret_val = transfer_result_create(
+				true, strdup(_dirname), 0, 0.0f, true, FILE_TYPE_DIR);
 		goto _get_recursive_cleanup;
 	}
 
 	struct file_item *fl = site->cur_dirlist;
 
-	ret_val = transfer_result_create(true, strdup(_dirname), 0, 0.0f, false, FILE_TYPE_DIR);
+	ret_val = transfer_result_create(
+			true, strdup(_dirname), 0, 0.0f, false, FILE_TYPE_DIR);
 	struct transfer_result *rp = ret_val;
 
 	//count files in list
@@ -145,19 +157,23 @@ struct transfer_result *get_recursive(struct site_info *site, const char *dirnam
 		if(fl->file_type == FILE_TYPE_FILE) {
 			cur_file_num++;
 
-			log_ui(site->thread_id, LOG_T_I, "%s: downloading file [%d/%d]\n", fl->file_name, cur_file_num, tot_files);
+			log_ui(site->thread_id, LOG_T_I, "%s: downloading file [%d/%d]\n",
+					fl->file_name, cur_file_num, tot_files);
 
-			struct transfer_result *f_ret = ftp_get(site, fl->file_name, new_lpath, new_rpath);
+			struct transfer_result *f_ret = ftp_get(
+					site, fl->file_name, new_lpath, new_rpath);
 
 			if(!f_ret->success) {
-				log_ui(site->thread_id, LOG_T_E, "%s: download failed!\n", fl->file_name);
+				log_ui(site->thread_id, LOG_T_E, "%s: download failed!\n",
+						fl->file_name);
 			}
 
 			//append stat
 			rp->next = f_ret;
 
 		} else if(fl->file_type == FILE_TYPE_DIR) {
-			log_ui(site->thread_id, LOG_T_I, "%s: downloading dir..\n", fl->file_name);
+			log_ui(site->thread_id, LOG_T_I, "%s: downloading dir..\n",
+					fl->file_name);
 
 			rp->next = get_recursive(site, fl->file_name, new_lpath, new_rpath);
 
@@ -189,14 +205,15 @@ _get_recursive_cleanup:
 	return ret_val;
 }
 
-struct transfer_result *put_recursive(struct site_info *site, const char *dirname, const char *local_dir, const char *remote_dir) {
+struct transfer_result *put_recursive(struct site_info *site,
+		const char *dirname, const char *local_dir, const char *remote_dir) {
 	struct transfer_result *ret_val = NULL;
 
 	char *new_lpath = NULL;
 	char *new_rpath = NULL;
 	struct file_item *l_list = NULL;
 
-	//copy args to prevent outside changes during cwd etc if ptr from dirlist etc
+	//cpy args to prevent outside changes during cwd etc if ptr from dirlist etc
 	char *_dirname = strdup(dirname);
 	char *_local_dir = strdup(local_dir);
 	char *_remote_dir = strdup(remote_dir);
@@ -208,13 +225,15 @@ struct transfer_result *put_recursive(struct site_info *site, const char *dirnam
 	free(str_list);
 
 	if(local_file == NULL) {
-		ret_val = transfer_result_create(false, strdup(_dirname), 0, 0.0f, false, FILE_TYPE_DIR);
+		ret_val = transfer_result_create(
+				false, strdup(_dirname), 0, 0.0f, false, FILE_TYPE_DIR);
 		goto _put_recursive_cleanup;
 	}
 
 	if(local_file->skip) {
 		log_ui(site->thread_id, LOG_T_W, "%s: skip\n", _dirname);
-		ret_val = transfer_result_create(true, strdup(_dirname), 0, 0.0f, true, FILE_TYPE_DIR);
+		ret_val = transfer_result_create(
+				true, strdup(_dirname), 0, 0.0f, true, FILE_TYPE_DIR);
 		goto _put_recursive_cleanup;
 	}
 
@@ -227,18 +246,22 @@ struct transfer_result *put_recursive(struct site_info *site, const char *dirnam
 			log_ui(site->thread_id, LOG_T_E, "%s: mkdir failed!\n", _dirname);
 		}
 	} else if(rfile->file_type != FILE_TYPE_DIR) {
-		log_ui(site->thread_id, LOG_T_E, "%s: remote file not a directory!\n", _dirname);
-		ret_val = transfer_result_create(false, strdup(_dirname), 0, 0.0f, false, FILE_TYPE_DIR);
+		log_ui(site->thread_id, LOG_T_E, "%s: remote file not a directory!\n",
+				_dirname);
+		ret_val = transfer_result_create(
+				false, strdup(_dirname), 0, 0.0f, false, FILE_TYPE_DIR);
 		goto _put_recursive_cleanup;
 	}
 
 	if(!ftp_cwd(site, new_rpath)) {
-		ret_val = transfer_result_create(false, strdup(_dirname), 0, 0.0f, false, FILE_TYPE_DIR);
+		ret_val = transfer_result_create(
+				false, strdup(_dirname), 0, 0.0f, false, FILE_TYPE_DIR);
 		goto _put_recursive_cleanup;
 	}
 
 	if(!ftp_ls(site)) {
-		ret_val = transfer_result_create(false, strdup(_dirname), 0, 0.0f, false, FILE_TYPE_DIR);
+		ret_val = transfer_result_create(
+				false, strdup(_dirname), 0, 0.0f, false, FILE_TYPE_DIR);
 		goto _put_recursive_cleanup;
 	}
 
@@ -250,11 +273,13 @@ struct transfer_result *put_recursive(struct site_info *site, const char *dirnam
 
 	if(lp == NULL) {
 		log_ui(site->thread_id, LOG_T_W, "%s: empty dir\n", _dirname);
-		ret_val = transfer_result_create(true, strdup(_dirname), 0, 0.0f, true, FILE_TYPE_DIR);
+		ret_val = transfer_result_create(
+				true, strdup(_dirname), 0, 0.0f, true, FILE_TYPE_DIR);
 		goto _put_recursive_cleanup;
 	}
 
-	ret_val = transfer_result_create(true, strdup(_dirname), 0, 0.0f, false, FILE_TYPE_DIR);
+	ret_val = transfer_result_create(
+			true, strdup(_dirname), 0, 0.0f, false, FILE_TYPE_DIR);
 	struct transfer_result *rp = ret_val;
 
 	//count files in list
@@ -278,18 +303,22 @@ struct transfer_result *put_recursive(struct site_info *site, const char *dirnam
 
 		if(lp->file_type == FILE_TYPE_FILE) {
 			cur_file_num++;
-			log_ui(site->thread_id, LOG_T_I, "%s: uploading file [%d/%d]\n", lp->file_name, cur_file_num, tot_files);
+			log_ui(site->thread_id, LOG_T_I, "%s: uploading file [%d/%d]\n",
+					lp->file_name, cur_file_num, tot_files);
 
-			struct transfer_result *f_ret = ftp_put(site, lp->file_name, new_lpath, new_rpath);
+			struct transfer_result *f_ret = ftp_put(
+					site, lp->file_name, new_lpath, new_rpath);
 
 			if(!f_ret->success) {
-				log_ui(site->thread_id, LOG_T_E, "%s: upload failed!\n", lp->file_name);
+				log_ui(site->thread_id, LOG_T_E, "%s: upload failed!\n",
+						lp->file_name);
 			}
 
 			//append stat
 			rp->next = f_ret;
 		} else if(lp->file_type == FILE_TYPE_DIR) {
-			log_ui(site->thread_id, LOG_T_I, "%s: uploading dir..\n", lp->file_name);
+			log_ui(site->thread_id, LOG_T_I, "%s: uploading dir..\n",
+					lp->file_name);
 
 			rp->next = put_recursive(site, lp->file_name, new_lpath, new_rpath);
 
@@ -577,7 +606,7 @@ bool ftp_auth(struct site_info *site) {
 		SSL *ssl = SSL_new(ctx);
 		SSL_set_fd(ssl, site->socket_fd);
 
-		if(SSL_connect(ssl) == -1) {
+		if(net_open_socket_secure(ssl) == -1) {
 			log_w("TLS FAILED, ERROR:\n");
 			ERR_print_errors_fp(stderr);
 			SSL_CTX_free(ctx);
@@ -590,7 +619,11 @@ bool ftp_auth(struct site_info *site) {
 
 	//send username
 	snprintf(s_auth, SITE_USER_MAX+8, "USER %s\r\n", site->username);
-	control_send(site, s_auth);
+
+	if(!control_send(site, s_auth)) {
+		return false;
+	}
+
 	code = control_recv(site);
 
 	//username failed?
@@ -601,7 +634,11 @@ bool ftp_auth(struct site_info *site) {
 
 	//send password
 	snprintf(s_pass, SITE_PASS_MAX+8, "PASS %s\r\n", site->password);
-	control_send(site, s_pass);
+
+	if(!control_send(site, s_pass)) {
+		return false;
+	}
+
 	code = control_recv(site);
 
 	//password fail?
@@ -611,22 +648,34 @@ bool ftp_auth(struct site_info *site) {
 	}
 
 	//set protection buffer to 0
-	control_send(site, "PBSZ 0\r\n");
+	if(!control_send(site, "PBSZ 0\r\n")) {
+		return false;
+	}
+
 	code = control_recv(site);
 
 	//set binary mode
-	control_send(site, "TYPE I\r\n");
+	if(!control_send(site, "TYPE I\r\n")) {
+		return false;
+	}
+
 	code = control_recv(site);
 
 	//set protection P
-	ftp_prot(site);
+	if(!ftp_prot(site)) {
+		return false;
+	}
 
 	//get features
-	ftp_feat(site);
+	if(!ftp_feat(site)) {
+		return false;
+	}
 
 	//enable xdupe if set in conf
 	if(config_get_conf()->enable_xdupe) {
-		ftp_xdupe(site, 3);
+		if(!ftp_xdupe(site, 3)) {
+			return false;
+		}
 	}
 
 	//get initial filelist && ret
@@ -704,18 +753,22 @@ bool ftp_cwd_up(struct site_info *site) {
 	return ftp_cwd(site, "..") && ftp_ls(site);
 }
 
-struct transfer_result *ftp_get(struct site_info *site, const char *filename, const char *local_dir, const char *remote_dir) {
+struct transfer_result *ftp_get(struct site_info *site, const char *filename,
+		const char *local_dir, const char *remote_dir) {
 	struct transfer_result *ret_val = NULL;
 	char *new_lpath = NULL;
 	char *new_rpath = NULL;
 	struct file_item *loc_file = NULL;
 
+	struct io_item *src = NULL;
+	struct io_item *dst = NULL;
+	struct stats_transfer *stats = NULL; 
+
 	struct file_item *file = filesystem_find_file(site->cur_dirlist, filename);
-	struct timeval time_start;
-	struct timeval time_end;
 
 	if(file == NULL) {
-		ret_val = transfer_result_create(false, strdup(filename), 0, 0.0f, false, FILE_TYPE_FILE);
+		ret_val = transfer_result_create(false, strdup(filename), 0, 0.0f,
+				false, FILE_TYPE_FILE);
 		goto _ftp_get_cleanup;
 	}
 
@@ -726,28 +779,31 @@ struct transfer_result *ftp_get(struct site_info *site, const char *filename, co
 	free(s_list);
 
 	if(loc_file != NULL) {
-		log_ui(site->thread_id, LOG_T_W, "%s: file exists, skipping\n", filename);
-		ret_val = transfer_result_create(true, strdup(filename), 0, 0.0f, true, FILE_TYPE_FILE);
+		log_ui(site->thread_id, LOG_T_W, "%s: file exists, skipping\n",
+				filename);
+		ret_val = transfer_result_create(true, strdup(filename), 0, 0.0f, true,
+				FILE_TYPE_FILE);
 		goto _ftp_get_cleanup;
 	}
 
 	if(file->skip) {
 		log_ui(site->thread_id, LOG_T_W, "%s: skip\n", filename);
-		ret_val = transfer_result_create(true, strdup(filename), 0, 0.0f, true, FILE_TYPE_FILE);
+		ret_val = transfer_result_create(true, strdup(filename), 0, 0.0f, true,
+				FILE_TYPE_FILE);
 		goto _ftp_get_cleanup;
 	}
 
 	//make sure sscn is off
-	if(site->enable_sscn) {
-		if(!ftp_sscn(site, false)) {
-			ret_val = transfer_result_create(false, strdup(filename), 0, 0.0f, false, FILE_TYPE_FILE);
-			goto _ftp_get_cleanup;
-		}
+	if(site->enable_sscn && !ftp_sscn(site, false)) {
+		ret_val = transfer_result_create(false, strdup(filename), 0, 0.0f,
+				false, FILE_TYPE_FILE);
+		goto _ftp_get_cleanup;
 	}
 
 
 	if(!open_data(site)) {
-		ret_val = transfer_result_create(false, strdup(filename), 0, 0.0f, false, FILE_TYPE_FILE);
+		ret_val = transfer_result_create(false, strdup(filename), 0, 0.0f,
+				false, FILE_TYPE_FILE);
 		goto _ftp_get_cleanup;
 	}
 
@@ -756,99 +812,57 @@ struct transfer_result *ftp_get(struct site_info *site, const char *filename, co
 
 	if(!ftp_retr(site, new_rpath)) {
 		net_close_socket(site->data_socket_fd);
-		ret_val = transfer_result_create(false, strdup(filename), 0, 0.0f, false, FILE_TYPE_FILE);
+		ret_val = transfer_result_create(false, strdup(filename), 0, 0.0f,
+				false, FILE_TYPE_FILE);
 		goto _ftp_get_cleanup;
 	}
-
-	if(site->use_tls) {
-		if(!data_enable_tls(site)) {
-			ret_val = transfer_result_create(false, strdup(filename), 0, 0.0f, false, FILE_TYPE_FILE);
-			goto _ftp_get_cleanup;
-		}
-	}
-
-	//create local path
-	char buf[FTP_DATA_BUF_SZ];
-	int32_t numbytes;
-	FILE *fd = fopen(new_lpath, "wb");
-	size_t tot_read = 0;
-
-	if(fd == NULL) {
-		log_w("error opening file for writing\n");
-		net_close_socket(site->data_socket_fd);
-		ret_val = transfer_result_create(false, strdup(filename), 0, 0.0f, false, FILE_TYPE_FILE);
-		goto _ftp_get_cleanup;
-	}
-
-	bool write_failed = false;
 
 	site_busy(site);
 
-	struct timeval time_last;
-	gettimeofday(&time_last, NULL);
-	gettimeofday(&time_start, NULL);
-
-	while((numbytes = data_read_socket(site, buf, FTP_DATA_BUF_SZ-1, false)) != 0) {
-		if (numbytes == -1) {
-			log_w("error recv\n");
-			write_failed = true;
-			break;
-		}
-
-		tot_read += numbytes;
-
-		if(fwrite(buf, sizeof(char), numbytes, fd) != numbytes) {
-			write_failed = true;
-			site->current_speed = 0.0;
-			break;
-		}
-
-		//update speed info
-		gettimeofday(&time_end, NULL);
-
-		if((time_end.tv_sec - time_last.tv_sec) >= 1) {
-			site->current_speed = calc_transfer_speed(&time_start, &time_end, tot_read);
-			time_last.tv_sec = time_end.tv_sec;
-		}
-	}
-
-	//reset transfer speed
-	site->current_speed = 0.0;
-	gettimeofday(&time_end, NULL);
-
-	if(site->use_tls) {
-		//important to make sure the ssl shutdown has finished before closing sock
-		while(SSL_shutdown(site->data_secure_fd) == 0) {
-		}
-		SSL_free(site->data_secure_fd);
-	}
-
-	fclose(fd);
-	net_close_socket(site->data_socket_fd);
-
-	uint32_t code = control_recv(site);
-
-	if(write_failed) {
-		ret_val = transfer_result_create(false, strdup(filename), 0, 0.0f, false, FILE_TYPE_FILE);
+	if(site->use_tls && !data_enable_tls(site)) {
+		ret_val = transfer_result_create(false, strdup(filename), 0, 0.0f,
+				false, FILE_TYPE_FILE);
 		goto _ftp_get_cleanup;
 	}
 
-	if(code == 226) {
-		//calculate speed on succ. transfer
-		char *speed = s_calc_transfer_speed(&time_start, &time_end, tot_read);
-		char *s_size = parse_file_size(tot_read);
+	src = io_item_create_remote(site);
+	dst = io_item_create_local(new_lpath);
+	stats = stats_transfer_create();
+	ssize_t tot_read = 0;
 
-		log_ui(site->thread_id, LOG_T_I, "%s: downloaded %s at %s in %ds\n", filename, s_size, speed, time_end.tv_sec - time_start.tv_sec);
+	if((tot_read = io_transfer_data(src, dst,
+			(void (*)(void *, size_t))stats_transfer_update, stats)) == -1) {	
+		ret_val = transfer_result_create(false, strdup(filename), 0, 0.0f,
+				false, FILE_TYPE_FILE);
+		goto _ftp_get_cleanup;
+	} else {
+		stats->status = sts_DONE;
+		stats_transfer_update(stats, 0);
+	}
 
-		free(s_size);
-		free(speed);
-		ret_val = transfer_result_create(true, strdup(filename), tot_read, calc_transfer_speed(&time_start, &time_end, tot_read), false, FILE_TYPE_FILE);
+	if(control_recv(site) != 226) {
+		ret_val = transfer_result_create(false, strdup(filename), 0, 0.0f,
+				false, FILE_TYPE_FILE);
 		goto _ftp_get_cleanup;
 	}
 
-	ret_val = transfer_result_create(false, strdup(filename), 0, 0.0f, false, FILE_TYPE_FILE);
+	//calculate speed on succ. transfer
+	char *speed = s_get_speed(stats->tot_avg_speed);
+	char *s_size = parse_file_size(tot_read);
+
+	log_ui(site->thread_id, LOG_T_I, "%s: downloaded %s at %s in %.2fs\n",
+			filename, s_size, speed, stats_transfer_duration(stats));
+
+	free(s_size);
+	free(speed);
+	ret_val = transfer_result_create(true, strdup(filename), tot_read,
+			stats->tot_avg_speed, false, FILE_TYPE_FILE);
 
 _ftp_get_cleanup:
+	site->current_speed = 0.0;
+	io_item_destroy(src);
+	io_item_destroy(dst);
+	stats_transfer_destroy(stats);
 	free(new_lpath);
 	free(new_rpath);
 
@@ -856,11 +870,15 @@ _ftp_get_cleanup:
 	return ret_val;
 }
 
-struct transfer_result *ftp_put(struct site_info *site, const char *filename, const char *local_dir, const char *remote_dir) {
+struct transfer_result *ftp_put(struct site_info *site, const char *filename,
+		const char *local_dir, const char *remote_dir) {
 	struct transfer_result *ret_val = NULL;
 	char *new_lpath = NULL;
 	char *new_rpath = NULL;
 
+	struct io_item *src = NULL;
+	struct io_item *dst = NULL;
+	struct stats_transfer *stats = NULL;
 
 	char *s_list = filesystem_local_list(local_dir);
 	struct file_item *f_files = filesystem_parse_list(s_list, LOCAL);
@@ -868,40 +886,38 @@ struct transfer_result *ftp_put(struct site_info *site, const char *filename, co
 	struct file_item *local_file = filesystem_find_file(f_files, filename);
 	free(s_list);
 
-	struct timeval time_start;
-	struct timeval time_end;
-
 	if(local_file == NULL) {
-		ret_val = transfer_result_create(false, strdup(filename), 0, 0.0f, false, FILE_TYPE_FILE);
+		ret_val = transfer_result_create(false, strdup(filename), 0, 0.0f,
+				false, FILE_TYPE_FILE);
 		goto _ftp_put_cleanup;
 	}
 
 	if(local_file->skip) {
 		log_ui(site->thread_id, LOG_T_W, "%s: skip\n", filename);
-		ret_val = transfer_result_create(true, strdup(filename), 0, 0.0f, true, FILE_TYPE_FILE);
+		ret_val = transfer_result_create(true, strdup(filename), 0, 0.0f, true,
+				FILE_TYPE_FILE);
 		goto _ftp_put_cleanup;
 	}
 
 	new_rpath = path_append_file(remote_dir, filename);
 
-	if(site->xdupe_enabled) {
-		if(site_xdupe_has(site, new_rpath)) {
-			log_ui(site->thread_id, LOG_T_W, "%s: skip (x-dupe)\n", filename);
-			ret_val = transfer_result_create(true, strdup(filename), 0, 0.0f, true, FILE_TYPE_FILE);
-			goto _ftp_put_cleanup;
-		}
+	if(site->xdupe_enabled && site_xdupe_has(site, new_rpath)) {
+		log_ui(site->thread_id, LOG_T_W, "%s: skip (x-dupe)\n", filename);
+		ret_val = transfer_result_create(true, strdup(filename), 0, 0.0f, true,
+				FILE_TYPE_FILE);
+		goto _ftp_put_cleanup;
 	}
 
 	//make sure sscn is off
-	if(site->enable_sscn) {
-		if(!ftp_sscn(site, false)) {
-			ret_val = transfer_result_create(false, strdup(filename), 0, 0.0f, false, FILE_TYPE_FILE);
-			goto _ftp_put_cleanup;
-		}
+	if(site->enable_sscn && !ftp_sscn(site, false)) {
+		ret_val = transfer_result_create(false, strdup(filename), 0, 0.0f,
+				false, FILE_TYPE_FILE);
+		goto _ftp_put_cleanup;
 	}
 
 	if(!open_data(site)) {
-		ret_val = transfer_result_create(false, strdup(filename), 0, 0.0f, false, FILE_TYPE_FILE);
+		ret_val = transfer_result_create(false, strdup(filename), 0, 0.0f,
+				false, FILE_TYPE_FILE);
 		goto _ftp_put_cleanup;
 	}
 
@@ -909,110 +925,57 @@ struct transfer_result *ftp_put(struct site_info *site, const char *filename, co
 
 	if(!ftp_stor(site, new_rpath)) {
 		net_close_socket(site->data_socket_fd);
-		ret_val = transfer_result_create(false, strdup(filename), 0, 0.0f, false, FILE_TYPE_FILE);
+		ret_val = transfer_result_create(false, strdup(filename), 0, 0.0f,
+				false, FILE_TYPE_FILE);
 		goto _ftp_put_cleanup;
 	}
 
 	site_busy(site);
 
-	if(site->use_tls) {
-		if(!data_enable_tls(site)) {
-			ret_val = transfer_result_create(false, strdup(filename), 0, 0.0f, false, FILE_TYPE_FILE);
-			goto _ftp_put_cleanup;
-		}
-	}
-
-	//create local path
-	char buf[FTP_DATA_BUF_SZ];
-	FILE *fd = fopen(new_lpath, "rb");
-	uint32_t n_sent = 0;
-	uint32_t n = 0;
-	size_t n_read = 0;
-	size_t tot_sent = 0;
-	//long int len;
-
-	if(fd == NULL) {
-		log_w("error opening file for reading\n");
-		net_close_socket(site->data_socket_fd);
-		ret_val = transfer_result_create(false, strdup(filename), 0, 0.0f, false, FILE_TYPE_FILE);
+	if(site->use_tls && !data_enable_tls(site)) {
+		ret_val = transfer_result_create(false, strdup(filename), 0, 0.0f,
+				false, FILE_TYPE_FILE);
 		goto _ftp_put_cleanup;
 	}
 
-	struct timeval time_last;
-	gettimeofday(&time_last, NULL);
-	gettimeofday(&time_start, NULL);
+	src = io_item_create_local(new_lpath);
+	dst = io_item_create_remote(site);
+	stats = stats_transfer_create();
+	ssize_t tot_sent = 0;
 
-	bool reading = true;
-	while(reading) {
-		//read block
-		n_read = fread(buf, 1, FTP_DATA_BUF_SZ, fd);
-		n_sent = 0;
-		//data read not expected size
-		if(n_read != FTP_DATA_BUF_SZ) {
-			//check if error set or not EOF
-			if( (ferror(fd) != 0) || (feof(fd) == 0) ) {
-				log_w("error reading data\n");
-				fclose(fd);
-				net_close_socket(site->data_socket_fd);
-				ret_val = transfer_result_create(false, strdup(filename), 0, 0.0f, false, FILE_TYPE_FILE);
-				goto _ftp_put_cleanup;
-			}
-			reading = false;
-		}
-
-		//send block
-		while(n_sent < n_read) {
-			n = data_write_socket(site, buf+n_sent, n_read-n_sent, false);
-			n_sent += n;
-			tot_sent += n;
-
-			if(n == -1) {
-				log_w("error writing data\n");
-				fclose(fd);
-				net_close_socket(site->data_socket_fd);
-				ret_val = transfer_result_create(false, strdup(filename), 0, 0.0f, false, FILE_TYPE_FILE);
-				goto _ftp_put_cleanup;
-			}
-		}
-
-		//update speed info
-		gettimeofday(&time_end, NULL);
-
-		if((time_end.tv_sec - time_last.tv_sec) >= 1) {
-			site->current_speed = calc_transfer_speed(&time_start, &time_end, tot_sent);
-			time_last.tv_sec = time_end.tv_sec;
-		}
+	if((tot_sent = io_transfer_data(src, dst,
+			(void (*)(void *, size_t))stats_transfer_update, stats)) == -1) {
+		ret_val = transfer_result_create(false, strdup(filename), 0, 0.0f,
+				false, FILE_TYPE_FILE);
+		goto _ftp_put_cleanup;
+	} else {
+		//do final update of stats(to make sure we get a speed for small files)
+		stats->status = sts_DONE;
+		stats_transfer_update(stats, 0);
 	}
 
-	site->current_speed = 0.0;
-	gettimeofday(&time_end, NULL);
-
-	if(site->use_tls) {
-		//important to make sure the ssl shutdown has finished before closing sock
-		while(SSL_shutdown(site->data_secure_fd) == 0) {
-		}
-		SSL_free(site->data_secure_fd);
-	}
-
-	fclose(fd);
-	net_close_socket(site->data_socket_fd);
-
-	if(control_recv(site) == 226) {
-		//calculate speed on succ. transfer
-		char *speed = s_calc_transfer_speed(&time_start, &time_end, tot_sent);
-		char *s_size = parse_file_size(tot_sent);
-
-		log_ui(site->thread_id, LOG_T_I, "%s: uploaded %s at %s in %ds\n", filename, s_size, speed, time_end.tv_sec - time_start.tv_sec);
-
-		free(s_size);
-		free(speed);
-		ret_val = transfer_result_create(true, strdup(filename), tot_sent, calc_transfer_speed(&time_start, &time_end, tot_sent), false, FILE_TYPE_FILE);
+	if(control_recv(site) != 226) {
+		ret_val = transfer_result_create(false, strdup(filename), 0, 0.0f,
+				false, FILE_TYPE_FILE);
 		goto _ftp_put_cleanup;
 	}
 
-	ret_val = transfer_result_create(false, strdup(filename), 0, 0.0f, false, FILE_TYPE_FILE);
+	//calculate speed on succ. transfer
+	char *s_speed = s_get_speed(stats->tot_avg_speed);
+	char *s_size = parse_file_size(tot_sent);
+	log_ui(site->thread_id, LOG_T_I, "%s: uploaded %s at %s in %.2fs\n",
+			filename, s_size, s_speed, stats_transfer_duration(stats));
+
+	free(s_size);
+	free(s_speed);
+	ret_val = transfer_result_create(true, strdup(filename), tot_sent,
+			stats->tot_avg_speed, false, FILE_TYPE_FILE);
 
 _ftp_put_cleanup:
+	site->current_speed = 0.0;
+	io_item_destroy(src);
+	io_item_destroy(dst);
+	stats_transfer_destroy(stats);
 	free(new_lpath);
 	free(new_rpath);
 	free(local_file);
@@ -1020,21 +983,24 @@ _ftp_put_cleanup:
 }
 
 
-struct transfer_result *ftp_get_recursive(struct site_info *site, const char *dirname, const char *local_dir, const char *remote_dir) {
+struct transfer_result *ftp_get_recursive(struct site_info *site,
+		const char *dirname, const char *local_dir, const char *remote_dir) {
 	struct timeval time_start;
 	struct timeval time_end;
 
 	gettimeofday(&time_start, NULL);
 
 	char *remote_origin = strdup(remote_dir);
-	struct transfer_result *ret = get_recursive(site, dirname, local_dir, remote_dir);
+	struct transfer_result *ret = get_recursive(
+			site, dirname, local_dir, remote_dir);
 
 	gettimeofday(&time_end, NULL);
 
 	ftp_cwd(site, remote_origin);
 	ftp_ls(site);
 
-	log_ui(site->thread_id, LOG_T_I, "Stats: %s\n", s_gen_stats(ret, time_end.tv_sec - time_start.tv_sec));
+	log_ui(site->thread_id, LOG_T_I, "Stats: %s\n",
+			s_gen_stats(ret, time_end.tv_sec - time_start.tv_sec));
 
 	free(remote_origin);
 
@@ -1042,21 +1008,24 @@ struct transfer_result *ftp_get_recursive(struct site_info *site, const char *di
 }
 
 
-struct transfer_result *ftp_put_recursive(struct site_info *site, const char *dirname, const char *local_dir, const char *remote_dir) {
+struct transfer_result *ftp_put_recursive(struct site_info *site,
+		const char *dirname, const char *local_dir, const char *remote_dir) {
 	struct timeval time_start;
 	struct timeval time_end;
 
 	gettimeofday(&time_start, NULL);
 
 	char *remote_origin = strdup(remote_dir);
-	struct transfer_result *ret = put_recursive(site, dirname, local_dir, remote_dir);
+	struct transfer_result *ret = put_recursive(
+			site, dirname, local_dir, remote_dir);
 
 	gettimeofday(&time_end, NULL);
 
 	ftp_cwd(site, remote_origin);
 	ftp_ls(site);
 
-	log_ui(site->thread_id, LOG_T_I, "Stats: %s\n", s_gen_stats(ret, time_end.tv_sec - time_start.tv_sec));
+	log_ui(site->thread_id, LOG_T_I, "Stats: %s\n",
+			s_gen_stats(ret, time_end.tv_sec - time_start.tv_sec));
 
 	free(remote_origin);
 

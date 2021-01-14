@@ -145,6 +145,10 @@ struct config *config_get_conf() {
 	return app_conf;
 }
 
+void config_set_conf(struct config *conf) {
+	app_conf = conf;
+}
+
 void config_cleanup() {
 	if(app_conf->sites != NULL) {
 		struct site_config *p = app_conf->sites;

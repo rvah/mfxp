@@ -16,7 +16,6 @@
 #include "config.h"
 #include "transfer_result.h"
 #include "stats.h"
-#include "transfer_result.h"
 #include "command.h"
 
 #define CONTROL_BUF_SZ 1024 // max number of bytes we can get at once

@@ -100,9 +100,13 @@ static int32_t default_socket_opener(char *address, char *port) {
 	return sockfd;
 }
 
-
 static int32_t (*socket_opener)(char *, char *) = default_socket_opener;
 
+static int default_socket_secure_opener(SSL *ssl) {
+	return SSL_connect(ssl);
+}
+
+static int (*socket_secure_opener)(SSL *) = default_socket_secure_opener;
 /*
  * ----------------
  *
@@ -188,6 +192,10 @@ int32_t net_open_socket(char *address, char *port) {
 	return socket_opener(address, port);
 }
 
+int net_open_socket_secure(SSL *ssl) {
+	return socket_secure_opener(ssl);
+}
+
 int32_t net_close_socket(int32_t fd) {
 	return socket_closer(fd);
 }
@@ -210,6 +218,10 @@ int net_socket_secure_send(SSL *ssl, const void *buf, int num) {
 
 void net_set_socket_opener(int32_t (*opener)(char *, char *)) {
 	socket_opener = opener;
+}
+
+void net_set_socket_secure_opener(int (*secure_opener)(SSL *)) {
+	socket_secure_opener = secure_opener;
 }
 
 void net_set_socket_closer(int32_t (*closer)(int32_t)) {

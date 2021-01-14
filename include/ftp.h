@@ -4,6 +4,8 @@
 #include "site.h"
 #include "control.h"
 #include "data.h"
+#include "io.h"
+#include "stats.h"
 
 #define FTP_DATA_BUF_SZ 4096
 

@@ -1,9 +1,4 @@
 #include "test_ftp.h"
-#include "filesystem.h"
-#include "ftp.h"
-#include "mock_net.h"
-#include "site.h"
-#include "unity.h"
 
 /*
 bool ftp_connect(struct site_info *site);
@@ -350,7 +345,85 @@ void test_ftp_xdupe() {
 	TEST_ASSERT_FALSE(site->xdupe_enabled);
 }
 
-void test_ftp_auth() {
+void test_ftp_auth(bool secure) {
+	struct site_info *site = get_site_a(secure);
+	mock_net_reset();
+
+	struct config *conf = malloc(sizeof(struct config));
+	conf->enable_xdupe = true;
+	config_set_conf(conf);
+
+	char *request[] = {
+		"AUTH TLS\r\n",
+		"USER user\r\n",
+		"PASS pass\r\n",
+		"PBSZ 0\r\n",
+		"TYPE I\r\n",
+		"PROT P\r\n",
+		"FEAT\r\n",
+		"SITE XDUPE 3\r\n",
+		"STAT -la\r\n",
+		"PWD\r\n"
+	};
+
+	char *response[] = {
+		"234 AUTH TLS successful\n",
+		"331 Password required for user.\n",
+
+		"230- Some server motd line1\n"
+		"230- Some server motd line2\n"
+		"230 User user logged in.\n",
+
+		"200 PBSZ 0 successful\n",
+		"200 Type set to I.\n",
+		"200 Protection set to Private\n",
+
+		"211- Extensions supported:\n"
+		" AUTH TLS\n"
+		" AUTH SSL\n"
+		" PBSZ\n"
+		" PROT\n"
+		" CPSV\n"
+		" SSCN\n"
+		" MDTM\n"
+		" SIZE\n"
+		" REST STREAM\n"
+		" SYST\n"
+		" EPRT\n"
+		" EPSV\n"
+		" CEPR\n"
+		"211 End\n",
+
+		"200 Activated extended dupe mode 3.\n",
+
+		"213- status of -la:\n"
+		"total 105\n"
+		"drwsrwxrwx   8 glftpd   glftpd       4096 Jan 10 10:06 .\n"
+		"drwxr-xr-x  14 glftpd   glftpd       4096 Nov 13 14:17 ..\n"
+		"drwxrwxrwx   2 user     NoGroup      4096 Jan 10 09:44 some_dir1\n"
+		"-rw-r--r--   1 user     NoGroup      5334 Dec 23 15:23 c.c\n"
+		"-rw-r--r--   1 user     NoGroup     14300 Dec 23 15:23 f.c\n"
+		"drwxrwxrwx   3 user     NoGroup      4096 Dec 23 09:48 home\n"
+		"-rw-r--r--   1 user     NoGroup       662 Dec 23 14:24 t.c\n"
+		"drwxrwxrwx   4 user     NoGroup      4096 Jan 10 07:26 tv\n"
+		"drwxrwxrwx   3 user     NoGroup      4096 Dec 26 13:26 txt\n"
+		"213 End of Status\n",
+
+		"257 \"/\" is current directory.\n",
+	};
+
+	mock_net_set_socket_response(response);
+	mock_net_set_socket_request(request);
+
+	TEST_ASSERT_TRUE(ftp_auth(site));
+}
+
+void test_ftp_auth_secure() {
+	test_ftp_auth(true);
+}
+
+void test_ftp_auth_insecure() {
+//	test_ftp_auth(false);
 }
 
 void test_ftp_stor() {
@@ -389,6 +462,41 @@ void test_ftp_stor() {
 }
 
 void test_ftp_pasv() {
+	struct site_info *site = get_site_a(false);
+
+	mock_net_reset();
+
+	char *request[] = {
+		"CPSV\r\n",
+		"CPSV\r\n",
+		"PASV\r\n",
+		"PASV\r\n"
+	};
+
+	char *response[] = {
+		"227 Entering Passive Mode (127,0,0,1,184,145)\n",
+		"227 Entering Passive Mode (127,0,0,1)\n",
+		"227 Entering Passive Mode (127,0,0,1,181,107)\n",
+		"500 Err\n"
+	};
+
+	mock_net_set_socket_response(response);
+	mock_net_set_socket_request(request);
+
+	struct pasv_details *succ1 = ftp_pasv(site, true);
+	struct pasv_details *fail1 = ftp_pasv(site, true);
+	struct pasv_details *succ2 = ftp_pasv(site, false);
+	struct pasv_details *fail2 = ftp_pasv(site, false);
+
+	TEST_ASSERT_NOT_NULL(succ1);
+	TEST_ASSERT_NULL(fail1);
+	TEST_ASSERT_NOT_NULL(succ2);
+	TEST_ASSERT_NULL(fail2);
+
+	TEST_ASSERT_TRUE(strcmp(succ1->host, "127.0.0.1") == 0);
+	TEST_ASSERT_TRUE(strcmp(succ2->host, "127.0.0.1") == 0);
+	TEST_ASSERT_TRUE(succ1->port == 184*256+145);
+	TEST_ASSERT_TRUE(succ2->port == 181*256+107);
 }
 
 void test_ftp_get() {
@@ -405,6 +513,7 @@ void test_ftp_put_recursive() {
 
 void test_run_ftp() {
 	net_set_socket_opener(mock_net_socket_opener);
+	net_set_socket_secure_opener(mock_net_socket_secure_opener);
 	net_set_socket_closer(mock_net_socket_closer);
 	net_set_socket_receiver(mock_net_socket_receiver);
 	net_set_socket_sender(mock_net_socket_sender);
@@ -421,7 +530,8 @@ void test_run_ftp() {
 	RUN_TEST(test_ftp_pwd);
 	RUN_TEST(test_ftp_feat);
 	RUN_TEST(test_ftp_xdupe);
-	RUN_TEST(test_ftp_auth);
+	RUN_TEST(test_ftp_auth_secure);
+	RUN_TEST(test_ftp_auth_insecure);
 	RUN_TEST(test_ftp_stor);
 	RUN_TEST(test_ftp_pasv);
 	RUN_TEST(test_ftp_get);

@@ -39,6 +39,7 @@ struct config {
 };
 
 struct config *config_get_conf();
+void config_set_conf(struct config *conf);
 
 void config_cleanup();
 struct site_config *get_site_config_by_name(const char *name);
