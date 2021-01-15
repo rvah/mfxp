@@ -35,7 +35,79 @@ static struct site_info *get_site_a(bool secure) {
 }
 
 void test_ftp_connect() {
-	TEST_IGNORE();
+	mock_net_reset();
+	struct site_info *site = get_site_a(true);
+
+	struct config *conf = malloc(sizeof(struct config));
+	conf->enable_xdupe = true;
+	config_set_conf(conf);
+
+	char *request[] = {
+		"AUTH TLS\r\n",
+		"USER user\r\n",
+		"PASS pass\r\n",
+		"PBSZ 0\r\n",
+		"TYPE I\r\n",
+		"PROT P\r\n",
+		"FEAT\r\n",
+		"SITE XDUPE 3\r\n",
+		"STAT -la\r\n",
+		"PWD\r\n"
+	};
+
+	char *response[] = {
+		"220 MY SITE NAME (glFTPd 2.11 BETA3 (Jul  2 2020) 64BiT Linux+TLS(OpenSSL 1.1.1g  21 Apr 2020)+SSP) ready.\n",
+		"234 AUTH TLS successful\n",
+		"331 Password required for user.\n",
+
+		"230- Some server motd line1\n"
+		"230- Some server motd line2\n"
+		"230 User user logged in.\n",
+
+		"200 PBSZ 0 successful\n",
+		"200 Type set to I.\n",
+		"200 Protection set to Private\n",
+
+		"211- Extensions supported:\n"
+		" AUTH TLS\n"
+		" AUTH SSL\n"
+		" PBSZ\n"
+		" PROT\n"
+		" CPSV\n"
+		" SSCN\n"
+		" MDTM\n"
+		" SIZE\n"
+		" REST STREAM\n"
+		" SYST\n"
+		" EPRT\n"
+		" EPSV\n"
+		" CEPR\n"
+		"211 End\n",
+
+		"200 Activated extended dupe mode 3.\n",
+
+		"213- status of -la:\n"
+		"total 105\n"
+		"drwsrwxrwx   8 glftpd   glftpd       4096 Jan 10 10:06 .\n"
+		"drwxr-xr-x  14 glftpd   glftpd       4096 Nov 13 14:17 ..\n"
+		"drwxrwxrwx   2 user     NoGroup      4096 Jan 10 09:44 some_dir1\n"
+		"-rw-r--r--   1 user     NoGroup      5334 Dec 23 15:23 c.c\n"
+		"-rw-r--r--   1 user     NoGroup     14300 Dec 23 15:23 f.c\n"
+		"drwxrwxrwx   3 user     NoGroup      4096 Dec 23 09:48 home\n"
+		"-rw-r--r--   1 user     NoGroup       662 Dec 23 14:24 t.c\n"
+		"drwxrwxrwx   4 user     NoGroup      4096 Jan 10 07:26 tv\n"
+		"drwxrwxrwx   3 user     NoGroup      4096 Dec 26 13:26 txt\n"
+		"213 End of Status\n",
+
+		"257 \"/\" is current directory.\n",
+	};
+
+	mock_net_set_socket_request(request);
+	mock_net_set_socket_response(response);
+
+	bool succ = ftp_connect(site);
+
+	TEST_ASSERT_TRUE(succ);
 }
 
 void test_ftp_retr() {
@@ -421,8 +493,16 @@ void test_ftp_auth(bool secure) {
 		"257 \"/\" is current directory.\n",
 	};
 
-	mock_net_set_socket_response(response);
-	mock_net_set_socket_request(request);
+	char **reqptr = request;
+	char **resptr = response;
+
+	if(!secure) {
+		reqptr++;
+		resptr++;
+	}
+
+	mock_net_set_socket_response(resptr);
+	mock_net_set_socket_request(reqptr);
 
 	TEST_ASSERT_TRUE(ftp_auth(site));
 }
@@ -432,8 +512,7 @@ void test_ftp_auth_secure() {
 }
 
 void test_ftp_auth_insecure() {
-	TEST_IGNORE();
-//	test_ftp_auth(false);
+	test_ftp_auth(false);
 }
 
 void test_ftp_stor() {
